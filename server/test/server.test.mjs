@@ -140,9 +140,9 @@ describe("self-hosted API", () => {
     assert.equal(second.value.project.document.processes.length, 2);
 
     const history = await request(`/api/projects/${projectId}/revisions`, { cookie: owner.cookie });
-    assert.deepEqual(history.value.revisions.map((entry) => ({ revision: entry.revision, title: entry.title, processCount: entry.processCount })), [
-      { revision: 2, title: "Canvas", processCount: 2 },
-      { revision: 1, title: "Canvas - Claims", processCount: 1 },
+    assert.deepEqual(history.value.revisions.map((entry) => ({ revision: entry.revision, title: entry.title, nodeCount: entry.nodeCount, edgeCount: entry.edgeCount })), [
+      { revision: 2, title: "Canvas", nodeCount: 0, edgeCount: 0 },
+      { revision: 1, title: "Canvas - Claims", nodeCount: 0, edgeCount: 0 },
     ]);
 
     const restored = await request(`/api/projects/${projectId}/revisions/1/restore`, { method: "POST", cookie: owner.cookie, csrf: owner.value.csrfToken, body: JSON.stringify({ expectedRevision: 2 }) });
