@@ -1,4 +1,54 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { decodeBytes, readDownload, readZipEntries } from "./helpers";
+import { parseDiagram, type DiagramDocument } from "../src/domain/diagram";
+
+function exportFixture(title: string, processes: Array<{ name: string; activity: string }>): DiagramDocument {
+  const now = new Date().toISOString();
+  const prefix = title.toLowerCase().replace(/\s+/g, "-");
+  return parseDiagram({
+    format: "activity-diagram",
+    version: 4,
+    metadata: { title, createdAt: now, updatedAt: now },
+    processes: processes.map((process, index) => ({
+      id: `${prefix}-process-${index + 1}`,
+      name: process.name,
+      position: { x: 0, y: index * 620 },
+      lanes: [{ id: `${prefix}-lane-${index + 1}`, name: `${process.name} Lane`, width: 320, colorIndex: index % 8 }],
+      nodes: [{
+        id: `${prefix}-activity-${index + 1}`,
+        type: "activity",
+        position: { x: 90, y: 110 },
+        label: process.activity,
+        laneId: `${prefix}-lane-${index + 1}`,
+      }],
+      edges: [],
+      swimlaneLayout: { heightMode: "automatic", height: 760 },
+    })),
+    appearance: { canvasColor: "#fafafa", gridColor: "#d7dde1", controlFlowColor: "#58666d", objectFlowColor: "#58666d" },
+  });
+}
+
+async function createExportProject(
+  page: Page,
+  title: string,
+  processes: Array<{ name: string; activity: string }>,
+) {
+  await page.goto("/projects");
+  await page.getByRole("button", { name: "New diagram" }).click();
+  await expect(page.locator(".react-flow")).toBeVisible();
+  const document = exportFixture(title, processes);
+  await page.getByLabel("Import diagram JSON").setInputFiles({
+    name: `${title}.json`,
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(document)),
+  });
+  await expect(page.getByText("Diagram imported", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Diagram title")).toHaveValue(title);
+  await expect(page.locator(".editor-statusbar")).toContainText(`${processes.length} ${processes.length === 1 ? "diagram" : "diagrams"}`);
+  await expect(page.locator(".privacy-chip")).toContainText("Saving locally");
+  await expect(page.locator(".privacy-chip")).toContainText("Saved locally");
+  return page.url();
+}
 
 test("creates, edits, exports, and reopens a local diagram", async ({ page }) => {
   await page.goto("/projects");
@@ -163,37 +213,114 @@ test("creates and customizes the complete UML notation set", async ({ page, isMo
   await expect(page.getByRole("button", { name: /Lane settings for/ })).toBeFocused();
 });
 
-test("shows nested process counts and keeps workspace exports project-based", async ({ page }) => {
-  await page.goto("/projects");
-  await page.getByRole("button", { name: "New diagram" }).click();
-  await expect(page.locator(".editor-statusbar")).toContainText("1 diagram");
-  await page.getByRole("button", { name: "Add process" }).click();
-  await page.getByLabel("Process name").fill("Approval flow");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.locator(".editor-statusbar")).toContainText("2 diagrams");
-  await page.getByLabel("Back to projects").click();
-  await page.getByRole("button", { name: "New diagram" }).click();
-  await expect(page.locator(".editor-statusbar")).toContainText("1 diagram");
-  await page.getByTitle("Export JSON").click();
+test("process-level export downloads isolated diagrams and importable JSON scopes", async ({ page }) => {
+  test.setTimeout(120_000);
+  const currentUrl = await createExportProject(page, "Project", [
+    { name: "Intake", activity: "First Task" },
+    { name: "Approval", activity: "Second Task" },
+  ]);
+  await createExportProject(page, "Second Project", [{ name: "Archive", activity: "Archive Task" }]);
+  await page.goto(currentUrl);
+  await expect(page.locator(".react-flow")).toBeVisible();
+  await page.getByRole("button", { name: "Approval", exact: true }).click();
+
+  await page.getByTitle("Export image").click();
   const dialog = page.getByRole("dialog", { name: "Export diagrams" });
-  await expect(dialog.getByText("2 diagrams in workspace")).toBeVisible();
-  await dialog.getByLabel("All in one").check();
-  const combined = page.waitForEvent("download");
-  await dialog.getByRole("button", { name: "Export ZIP" }).click();
-  expect((await combined).suggestedFilename()).toBe("flox-workspace-all-in-one-json.zip");
+  await dialog.getByLabel("SVG").check();
+
+  let downloadEvent = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Export SVG", exact: true }).click();
+  const selectedSvg = await readDownload(await downloadEvent);
+  expect(selectedSvg.filename).toBe("Project-002.svg");
+  const selectedSvgText = decodeBytes(selectedSvg.bytes);
+  expect(selectedSvgText).toContain("Approval");
+  expect(selectedSvgText).toContain("Second Task");
+  expect(selectedSvgText).not.toContain("Intake");
+  expect(selectedSvgText).not.toContain("First Task");
+
   await dialog.getByLabel("Export separately").check();
-  const separate = page.waitForEvent("download");
+  downloadEvent = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Export ZIP" }).click();
-  expect((await separate).suggestedFilename()).toBe("flox-workspace-separate-json.zip");
-  for (const format of ["SVG", "PNG"] as const) {
-    await dialog.getByLabel(format).check();
-    for (const [scope, suffix] of [["All in one", "all-in-one"], ["Export separately", "separate"]] as const) {
-      await dialog.getByLabel(scope).check();
-      const archive = page.waitForEvent("download");
-      await dialog.getByRole("button", { name: "Export ZIP" }).click();
-      expect((await archive).suggestedFilename()).toBe(`flox-workspace-${suffix}-${format.toLowerCase()}.zip`);
-    }
-  }
+  const separateSvg = await readDownload(await downloadEvent);
+  expect(separateSvg.filename).toBe("Project-diagrams-svg.zip");
+  const separateEntries = readZipEntries(separateSvg.bytes);
+  expect(Object.keys(separateEntries).sort()).toEqual(["Project-001.svg", "Project-002.svg"]);
+  expect(decodeBytes(separateEntries["Project-001.svg"])).toContain("First Task");
+  expect(decodeBytes(separateEntries["Project-001.svg"])).not.toContain("Second Task");
+  expect(decodeBytes(separateEntries["Project-002.svg"])).toContain("Second Task");
+  expect(decodeBytes(separateEntries["Project-002.svg"])).not.toContain("First Task");
+
+  await dialog.getByLabel("All-in-one").check();
+  downloadEvent = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Export ZIP" }).click();
+  const workspaceSvg = await readDownload(await downloadEvent);
+  expect(workspaceSvg.filename).toBe("flox-workspace-svg.zip");
+  const workspaceSvgEntries = readZipEntries(workspaceSvg.bytes);
+  expect(Object.keys(workspaceSvgEntries).sort()).toEqual([
+    "Project/Project-001.svg",
+    "Project/Project-002.svg",
+    "Second-Project/Second-Project-001.svg",
+  ]);
+  expect(decodeBytes(workspaceSvgEntries["Project/Project-001.svg"])).toContain("First Task");
+  expect(decodeBytes(workspaceSvgEntries["Project/Project-001.svg"])).not.toContain("Second Task");
+  expect(decodeBytes(workspaceSvgEntries["Project/Project-002.svg"])).toContain("Second Task");
+  expect(decodeBytes(workspaceSvgEntries["Project/Project-002.svg"])).not.toContain("First Task");
+  expect(decodeBytes(workspaceSvgEntries["Second-Project/Second-Project-001.svg"])).toContain("Archive Task");
+
+  await dialog.getByLabel("JSON").check();
+  await dialog.getByLabel("Export selected").check();
+  downloadEvent = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Export JSON", exact: true }).click();
+  const selectedJson = await readDownload(await downloadEvent);
+  expect(selectedJson.filename).toBe("Project-002.json");
+  const selectedDocument = parseDiagram(JSON.parse(decodeBytes(selectedJson.bytes)));
+  expect(selectedDocument.version).toBe(4);
+  expect(selectedDocument.processes).toHaveLength(1);
+  expect(selectedDocument.processes[0]).toMatchObject({ name: "Approval", position: { x: 0, y: 0 } });
+
+  await dialog.getByLabel("Export project").check();
+  downloadEvent = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Export JSON", exact: true }).click();
+  const projectJson = await readDownload(await downloadEvent);
+  expect(projectJson.filename).toBe("Project.json");
+  const projectDocument = parseDiagram(JSON.parse(decodeBytes(projectJson.bytes)));
+  expect(projectDocument.processes.map((process) => process.name)).toEqual(["Intake", "Approval"]);
+  expect(selectedDocument.processes[0].id).toBe(projectDocument.processes[1].id);
+
+  await dialog.getByLabel("All-in-one").check();
+  await expect(dialog.getByRole("group", { name: "Organization", exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Diagram-wise")).toBeChecked();
+  downloadEvent = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Export ZIP" }).click();
+  const diagramWiseZip = readZipEntries((await readDownload(await downloadEvent)).bytes);
+  expect(Object.keys(diagramWiseZip).sort()).toEqual([
+    "Project/Project-001.json",
+    "Project/Project-002.json",
+    "Second-Project/Second-Project-001.json",
+  ]);
+  for (const entry of Object.values(diagramWiseZip)) expect(parseDiagram(JSON.parse(decodeBytes(entry))).processes).toHaveLength(1);
+
+  await dialog.getByLabel("Project-wise").check();
+  downloadEvent = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Export ZIP" }).click();
+  const projectWiseZip = readZipEntries((await readDownload(await downloadEvent)).bytes);
+  expect(Object.keys(projectWiseZip).sort()).toEqual([
+    "Project/Project.json",
+    "Second-Project/Second-Project.json",
+  ]);
+  expect(parseDiagram(JSON.parse(decodeBytes(projectWiseZip["Project/Project.json"]))).processes).toHaveLength(2);
+  expect(parseDiagram(JSON.parse(decodeBytes(projectWiseZip["Second-Project/Second-Project.json"]))).processes).toHaveLength(1);
+
+  await dialog.getByRole("button", { name: "Close export" }).click();
+  const importInput = page.getByLabel("Import diagram JSON");
+  await importInput.setInputFiles({ name: selectedJson.filename, mimeType: "application/json", buffer: Buffer.from(selectedJson.bytes) });
+  await expect(page.getByText("Diagram imported", { exact: true })).toBeVisible();
+  await expect(page.locator(".editor-statusbar")).toContainText("1 diagram");
+  await expect(page.getByRole("button", { name: "Approval", exact: true })).toBeVisible();
+  await importInput.setInputFiles({ name: projectJson.filename, mimeType: "application/json", buffer: Buffer.from(projectJson.bytes) });
+  await expect(page.locator(".editor-statusbar")).toContainText("2 diagrams");
+  await expect(page.getByRole("button", { name: "Intake", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approval", exact: true })).toBeVisible();
 });
 
 test("connects visible handles and edits a selectable connector", async ({ page }) => {

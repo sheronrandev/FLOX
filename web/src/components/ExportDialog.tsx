@@ -98,6 +98,7 @@ export function ExportDialog({
     const total = summaries.length + 1;
     const records: ProjectRecord[] = [recordFor(currentProjectId, document)];
     setProgress(`Loading project 1 of ${total}`);
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
 
     for (let index = 0; index < summaries.length; index += 1) {
       const summary = summaries[index];
