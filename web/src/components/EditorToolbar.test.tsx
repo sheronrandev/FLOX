@@ -3,11 +3,18 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { themePresets } from "../domain/app-theme";
-import { createDiagram } from "../domain/diagram";
+import { createDiagram, parseDiagram } from "../domain/diagram";
 import { defaultExportPreferences } from "../domain/preferences";
 import type { ProjectRepository } from "../persistence/project-repository";
 import { useDiagramStore } from "../store/diagram-store";
 import { EditorToolbar } from "./EditorToolbar";
+
+const downloadBlob = vi.hoisted(() => vi.fn());
+
+vi.mock("../diagram/export-diagram", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../diagram/export-diagram")>();
+  return { ...original, downloadBlob };
+});
 
 const repository: ProjectRepository = {
   async list() { return []; },
@@ -31,8 +38,18 @@ function renderToolbar() {
   );
 }
 
+async function readJsonBlob(blob: Blob): Promise<unknown> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(JSON.parse(String(reader.result)));
+    reader.readAsText(blob);
+  });
+}
+
 describe("editor process and swimlane manager", () => {
   beforeEach(() => {
+    downloadBlob.mockReset();
     const document = createDiagram("Order approval");
     const source = document.processes[0];
     source.lanes = [
@@ -129,5 +146,20 @@ describe("editor process and swimlane manager", () => {
 
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(screen.getByRole("region", { name: "Fulfillment" })).toBeVisible();
+  });
+
+  it("passes the store active process to selected JSON export", async () => {
+    useDiagramStore.setState({ activeProcessId: "process-fulfillment" });
+    renderToolbar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Export JSON" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Export diagrams" })).getByRole("button", { name: "Export JSON" }));
+
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledTimes(1));
+    const [blob, filename] = downloadBlob.mock.calls[0] as [Blob, string];
+    const exported = parseDiagram(await readJsonBlob(blob));
+    expect(filename).toBe("Order-approval-002.json");
+    expect(exported.processes).toHaveLength(1);
+    expect(exported.processes[0].id).toBe("process-fulfillment");
   });
 });

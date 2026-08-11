@@ -337,7 +337,7 @@ export function EditorToolbar({ collapsed, onCollapsedChange, theme, onThemeChan
           <Button variant="ghost" className="palette-button" onClick={(event) => openExport(event.currentTarget, exportPreferences.defaultFormat)} title="Export image">
             <ImageDown /> {!collapsed && <span>Export image</span>}
           </Button>
-          {exportOpen && <ExportDialog document={document} currentProjectId={currentProjectId} repository={repository} workspaceCount={workspaceCount} defaults={exportPreferences} initialFormat={exportFormat} onDefaultsChange={onExportPreferencesChange} onClose={closeExport} />}
+          {exportOpen && <ExportDialog document={document} activeProcessId={activeProcessId} currentProjectId={currentProjectId} repository={repository} workspaceCount={workspaceCount} defaults={exportPreferences} initialFormat={exportFormat} onDefaultsChange={onExportPreferencesChange} onClose={closeExport} />}
         </div>
         <Button variant="ghost" className="palette-button" onClick={(event) => openExport(event.currentTarget, "json")} title="Export JSON">
           <Download /> {!collapsed && <span>Export JSON</span>}
