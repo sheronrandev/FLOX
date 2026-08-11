@@ -36,9 +36,10 @@ export function sliceProcessDocument(document: DiagramDocument, processId: strin
   const source = parseDiagram(document);
   const process = source.processes.find((entry) => entry.id === processId);
   if (!process) throw new Error("The selected diagram is no longer available.");
+  const title = `${source.metadata.title} - ${process.name}`.slice(0, 120);
   return parseDiagram({
     ...source,
-    metadata: { ...source.metadata, title: `${source.metadata.title} - ${process.name}` },
+    metadata: { ...source.metadata, title },
     processes: [{ ...process, position: { x: 0, y: 0 } }],
   });
 }
@@ -49,6 +50,23 @@ function projectName(record: ProjectRecord, document: DiagramDocument): string {
 
 function validatedDocument(record: ProjectRecord): DiagramDocument {
   return parseDiagram(record.document);
+}
+
+function uniqueFolder(base: string, usedFolders: Set<string>, nextSuffix: Map<string, number>): string {
+  if (!usedFolders.has(base)) {
+    usedFolders.add(base);
+    nextSuffix.set(base, 2);
+    return base;
+  }
+  let suffix = nextSuffix.get(base) ?? 2;
+  let folder = `${base}-${suffix}`;
+  while (usedFolders.has(folder)) {
+    suffix += 1;
+    folder = `${base}-${suffix}`;
+  }
+  usedFolders.add(folder);
+  nextSuffix.set(base, suffix + 1);
+  return folder;
 }
 
 function validateManifest(entries: ExportManifestEntry[]): ExportManifestEntry[] {
@@ -82,15 +100,14 @@ export function buildProjectProcessManifest(record: ProjectRecord, format: Expor
 }
 
 export function buildWorkspaceManifest(records: ProjectRecord[], format: ExportFormat, organization: JsonOrganization): ExportManifestEntry[] {
-  const folderCounts = new Map<string, number>();
+  const usedFolders = new Set<string>();
+  const nextSuffix = new Map<string, number>();
   const entries: ExportManifestEntry[] = [];
   for (const record of records) {
     const document = validatedDocument(record);
     const name = projectName(record, document);
     const baseFolder = safeArchiveSegment(name);
-    const count = (folderCounts.get(baseFolder) ?? 0) + 1;
-    folderCounts.set(baseFolder, count);
-    const folder = count === 1 ? baseFolder : `${baseFolder}-${count}`;
+    const folder = uniqueFolder(baseFolder, usedFolders, nextSuffix);
     if (format === "json" && organization === "project-wise") {
       entries.push({
         projectId: record.id,

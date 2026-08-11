@@ -79,6 +79,30 @@ describe("process export manifests", () => {
     expect(manifest.every((entry) => parseDiagram(entry.document).processes.length === 1)).toBe(true);
   });
 
+  it("allocates a unique folder when a duplicate suffix is another project title", () => {
+    const manifest = buildWorkspaceManifest([
+      record("claims-1", "Claims"),
+      record("claims-2", "Claims"),
+      record("claims-2-title", "Claims-2"),
+    ], "svg", "diagram-wise");
+
+    expect(manifest.map((entry) => entry.path)).toEqual([
+      "Claims/Claims-001.svg",
+      "Claims-2/Claims-001.svg",
+      "Claims-2-2/Claims-2-001.svg",
+    ]);
+  });
+
+  it("slices maximum-length titles into strict v4 documents", () => {
+    const document = createDiagram("P".repeat(120));
+    document.processes[0].name = "A".repeat(120);
+
+    const sliced = sliceProcessDocument(document, document.processes[0].id);
+
+    expect(parseDiagram(sliced)).toMatchObject({ version: 4 });
+    expect(sliced.metadata.title).toHaveLength(120);
+  });
+
   it("keeps complete validated multi-process documents in project-wise JSON", () => {
     const claims = record("claims", "Claims");
     claims.document.processes.push({
