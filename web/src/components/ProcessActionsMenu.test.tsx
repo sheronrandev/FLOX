@@ -86,4 +86,21 @@ describe("process actions menu", () => {
     expect(onDelete).toHaveBeenCalledOnce();
     await waitFor(() => expect(trigger).toHaveFocus());
   });
+
+  it("closes on reverse tab without overriding the browser focus move", async () => {
+    render(
+      <ProcessActionsMenu
+        processName="Claims approval"
+        canMoveSelection
+        onMoveSelection={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Claims approval" }));
+    const menu = screen.getByRole("menu");
+    fireEvent.keyDown(menu, { key: "Tab", shiftKey: true });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
 });

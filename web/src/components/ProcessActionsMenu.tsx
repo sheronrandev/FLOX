@@ -75,6 +75,11 @@ export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelect
       return;
     }
 
+    if (event.key === "Tab") {
+      setOpen(false);
+      return;
+    }
+
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];

@@ -97,6 +97,12 @@ test("presents contextual process and swimlane management controls", async ({ pa
   await expect(menu).toBeHidden();
   await expect(page.locator(":focus")).not.toHaveAttribute("role", "menuitem");
 
+  await overflow.focus();
+  await overflow.click();
+  await page.keyboard.press("Shift+Tab");
+  await expect(menu).toBeHidden();
+  await expect(overflow).toBeFocused();
+
   const reorder = page.getByRole("button", { name: /Move .* swimlane left/ }).first();
   const target = await reorder.boundingBox();
   expect(target?.width).toBeGreaterThanOrEqual(44);
