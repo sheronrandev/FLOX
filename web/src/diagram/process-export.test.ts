@@ -45,6 +45,12 @@ describe("process export manifests", () => {
     expect(safeArchiveSegment("")).toBe("activity-diagram");
   });
 
+  it("uses a fallback segment for empty and punctuation-only archive titles", () => {
+    for (const title of ["", "...", "---", "!!!", "<>{}[]"]) {
+      expect(safeArchiveSegment(title)).toBe("activity-diagram");
+    }
+  });
+
   it("numbers zero-based process indexes in export filenames", () => {
     expect(processExportFilename("Claims Project", 1, "png")).toBe("Claims-Project-002.png");
   });
@@ -91,6 +97,38 @@ describe("process export manifests", () => {
       "Claims-2/Claims-001.svg",
       "Claims-2-2/Claims-2-001.svg",
     ]);
+  });
+
+  it("creates traversal-safe, stable archive paths for colliding workspace titles", () => {
+    const unsafeTitles = ["../Claims", "..\\Claims", ".", "..", "A/B", "A\\B", "A\u0000B", "\u001f"];
+    const titles = [...unsafeTitles, "Claims", "Claims", "Claims-2", "Claims"];
+    const records = titles.map((title, index) => record(`internal-process-${index}`, title));
+    const manifest = buildWorkspaceManifest(records, "svg", "diagram-wise");
+    const paths = manifest.map((entry) => entry.path);
+
+    expect(paths).toEqual([
+      "Claims/Claims-001.svg",
+      "Claims-2/Claims-001.svg",
+      "activity-diagram/activity-diagram-001.svg",
+      "activity-diagram-2/activity-diagram-001.svg",
+      "A-B/A-B-001.svg",
+      "A-B-2/A-B-001.svg",
+      "AB/AB-001.svg",
+      "activity-diagram-3/activity-diagram-001.svg",
+      "Claims-3/Claims-001.svg",
+      "Claims-4/Claims-001.svg",
+      "Claims-2-2/Claims-2-001.svg",
+      "Claims-5/Claims-001.svg",
+    ]);
+    expect(new Set(paths).size).toBe(paths.length);
+
+    for (const entry of manifest) {
+      expect(entry.path).not.toMatch(/(^|\/)\.\.?(?:$|\/)/);
+      expect(entry.path).not.toMatch(/[\\\u0000-\u001f]/);
+      expect(entry.path.split("/")).toHaveLength(2);
+      expect(entry.path).not.toContain(entry.projectId);
+      expect(entry.path).not.toContain(entry.document.processes[0].id);
+    }
   });
 
   it("slices maximum-length titles into strict v4 documents", () => {
