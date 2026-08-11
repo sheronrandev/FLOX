@@ -50,6 +50,17 @@ async function createExportProject(
   return page.url();
 }
 
+function expectSvgEntry(
+  entries: Record<string, Uint8Array>,
+  path: string,
+  includedText: string[],
+  excludedText: string[],
+) {
+  const svg = decodeBytes(entries[path]);
+  for (const text of includedText) expect(svg).toContain(text);
+  for (const text of excludedText) expect(svg).not.toContain(text);
+}
+
 test("creates, edits, exports, and reopens a local diagram", async ({ page }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
@@ -245,10 +256,8 @@ test("process-level export downloads isolated diagrams and importable JSON scope
   expect(separateSvg.filename).toBe("Project-diagrams-svg.zip");
   const separateEntries = readZipEntries(separateSvg.bytes);
   expect(Object.keys(separateEntries).sort()).toEqual(["Project-001.svg", "Project-002.svg"]);
-  expect(decodeBytes(separateEntries["Project-001.svg"])).toContain("First Task");
-  expect(decodeBytes(separateEntries["Project-001.svg"])).not.toContain("Second Task");
-  expect(decodeBytes(separateEntries["Project-002.svg"])).toContain("Second Task");
-  expect(decodeBytes(separateEntries["Project-002.svg"])).not.toContain("First Task");
+  expectSvgEntry(separateEntries, "Project-001.svg", ["Intake", "First Task"], ["Approval", "Second Task", "Archive", "Archive Task"]);
+  expectSvgEntry(separateEntries, "Project-002.svg", ["Approval", "Second Task"], ["Intake", "First Task", "Archive", "Archive Task"]);
 
   await dialog.getByLabel("All-in-one").check();
   downloadEvent = page.waitForEvent("download");
@@ -261,11 +270,9 @@ test("process-level export downloads isolated diagrams and importable JSON scope
     "Project/Project-002.svg",
     "Second-Project/Second-Project-001.svg",
   ]);
-  expect(decodeBytes(workspaceSvgEntries["Project/Project-001.svg"])).toContain("First Task");
-  expect(decodeBytes(workspaceSvgEntries["Project/Project-001.svg"])).not.toContain("Second Task");
-  expect(decodeBytes(workspaceSvgEntries["Project/Project-002.svg"])).toContain("Second Task");
-  expect(decodeBytes(workspaceSvgEntries["Project/Project-002.svg"])).not.toContain("First Task");
-  expect(decodeBytes(workspaceSvgEntries["Second-Project/Second-Project-001.svg"])).toContain("Archive Task");
+  expectSvgEntry(workspaceSvgEntries, "Project/Project-001.svg", ["Intake", "First Task"], ["Approval", "Second Task", "Archive", "Archive Task"]);
+  expectSvgEntry(workspaceSvgEntries, "Project/Project-002.svg", ["Approval", "Second Task"], ["Intake", "First Task", "Archive", "Archive Task"]);
+  expectSvgEntry(workspaceSvgEntries, "Second-Project/Second-Project-001.svg", ["Archive", "Archive Task"], ["Intake", "First Task", "Approval", "Second Task"]);
 
   await dialog.getByLabel("JSON").check();
   await dialog.getByLabel("Export selected").check();
@@ -298,7 +305,19 @@ test("process-level export downloads isolated diagrams and importable JSON scope
     "Project/Project-002.json",
     "Second-Project/Second-Project-001.json",
   ]);
-  for (const entry of Object.values(diagramWiseZip)) expect(parseDiagram(JSON.parse(decodeBytes(entry))).processes).toHaveLength(1);
+  const expectedDiagramWise = {
+    "Project/Project-001.json": { id: "project-process-1", name: "Intake", activities: ["First Task"] },
+    "Project/Project-002.json": { id: "project-process-2", name: "Approval", activities: ["Second Task"] },
+    "Second-Project/Second-Project-001.json": { id: "second-project-process-1", name: "Archive", activities: ["Archive Task"] },
+  } as const;
+  for (const [path, expected] of Object.entries(expectedDiagramWise)) {
+    const exported = parseDiagram(JSON.parse(decodeBytes(diagramWiseZip[path])));
+    expect(exported.processes.map((process) => ({
+      id: process.id,
+      name: process.name,
+      activities: process.nodes.map((node) => node.label),
+    }))).toEqual([expected]);
+  }
 
   await dialog.getByLabel("Project-wise").check();
   downloadEvent = page.waitForEvent("download");
@@ -308,8 +327,8 @@ test("process-level export downloads isolated diagrams and importable JSON scope
     "Project/Project.json",
     "Second-Project/Second-Project.json",
   ]);
-  expect(parseDiagram(JSON.parse(decodeBytes(projectWiseZip["Project/Project.json"]))).processes).toHaveLength(2);
-  expect(parseDiagram(JSON.parse(decodeBytes(projectWiseZip["Second-Project/Second-Project.json"]))).processes).toHaveLength(1);
+  expect(parseDiagram(JSON.parse(decodeBytes(projectWiseZip["Project/Project.json"]))).processes.map((process) => process.name)).toEqual(["Intake", "Approval"]);
+  expect(parseDiagram(JSON.parse(decodeBytes(projectWiseZip["Second-Project/Second-Project.json"]))).processes.map((process) => process.name)).toEqual(["Archive"]);
 
   await dialog.getByRole("button", { name: "Close export" }).click();
   const importInput = page.getByLabel("Import diagram JSON");
