@@ -32,11 +32,20 @@ export function processExportFilename(projectTitle: string, processIndex: number
   return `${safeArchiveSegment(projectTitle)}-${String(processIndex + 1).padStart(3, "0")}.${format}`;
 }
 
+function processDocumentTitle(projectTitle: string, processName: string): string {
+  const separator = " - ";
+  const composite = `${projectTitle}${separator}${processName}`;
+  if (composite.length <= 120) return composite;
+  if (processName.length >= 120) return processName.slice(0, 120);
+  const projectTitleLength = 120 - separator.length - processName.length;
+  return projectTitleLength > 0 ? `${projectTitle.slice(0, projectTitleLength)}${separator}${processName}` : processName;
+}
+
 export function sliceProcessDocument(document: DiagramDocument, processId: string): DiagramDocument {
   const source = parseDiagram(document);
   const process = source.processes.find((entry) => entry.id === processId);
   if (!process) throw new Error("The selected diagram is no longer available.");
-  const title = `${source.metadata.title} - ${process.name}`.slice(0, 120);
+  const title = processDocumentTitle(source.metadata.title, process.name);
   return parseDiagram({
     ...source,
     metadata: { ...source.metadata, title },

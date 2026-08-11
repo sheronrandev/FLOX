@@ -103,6 +103,26 @@ describe("process export manifests", () => {
     expect(sliced.metadata.title).toHaveLength(120);
   });
 
+  it("keeps a short process name visible when shortening a long project title", () => {
+    const document = createDiagram("P".repeat(115));
+    document.processes[0].name = "Approval";
+
+    const sliced = sliceProcessDocument(document, document.processes[0].id);
+
+    expect(sliced.metadata.title).toBe(`${"P".repeat(109)} - Approval`);
+    expect(parseDiagram(sliced)).toMatchObject({ version: 4 });
+  });
+
+  it("uses a maximum-length process name when it consumes the title capacity", () => {
+    const document = createDiagram("Claims");
+    document.processes[0].name = "A".repeat(120);
+
+    const sliced = sliceProcessDocument(document, document.processes[0].id);
+
+    expect(sliced.metadata.title).toBe("A".repeat(120));
+    expect(parseDiagram(sliced)).toMatchObject({ version: 4 });
+  });
+
   it("keeps complete validated multi-process documents in project-wise JSON", () => {
     const claims = record("claims", "Claims");
     claims.document.processes.push({
