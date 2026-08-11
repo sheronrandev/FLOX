@@ -77,7 +77,7 @@
     if (!process) throw new Error("The selected diagram is no longer available.");
     return parseDiagram({
       ...validated,
-      metadata: { ...validated.metadata, title: `${validated.metadata.title} - ${process.name}` },
+      metadata: { ...validated.metadata, title: processExportDocumentTitle(validated.metadata.title, process.name) },
       processes: [{ ...structuredClone(process), position: { x: 0, y: 0 } }],
     });
   }
@@ -86,6 +86,8 @@
     return `${safeArchiveSegment(projectTitle)}-${String(processIndex + 1).padStart(3, "0")}.${format}`;
   }
   ```
+
+  `processExportDocumentTitle` returns the exact `{project title} - {process name}` value when it fits 120 characters. For longer values, shorten the project-title portion first so the process name stays visible; if the process name itself consumes the strict v4 limit, use its first 120 characters.
 
 - [ ] **Step 4: Add failing archive-name security and manifest tests**
 

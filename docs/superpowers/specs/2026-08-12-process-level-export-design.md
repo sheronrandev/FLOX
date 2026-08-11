@@ -47,7 +47,7 @@ Correct FLOX's export scopes so that an activity diagram means one process insid
 
 - Export a valid v4 `DiagramDocument` containing only the active process.
 - Normalize the exported process position to `{ x: 0, y: 0 }` while preserving its lanes, nodes, connectors, layout, identifier, name, and appearance.
-- Set the exported document metadata title to `{project title} - {process name}`.
+- Set the exported document metadata title to `{project title} - {process name}` when it fits the strict v4 120-character limit. When it does not fit, shorten the project-title portion first so the process name remains visible; if the process name itself consumes the limit, use its first 120 characters.
 - The result must pass `parseDiagram` and import through the existing FLOX diagram import flow.
 - Download it directly as `{project-name}-{process-order}.json`.
 
