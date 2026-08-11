@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent } from "react";
 import { Ellipsis, MoveRight, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -11,6 +11,7 @@ export interface ProcessActionsMenuProps {
 
 export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelection, onDelete }: ProcessActionsMenuProps) {
   const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<CSSProperties>({});
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -28,9 +29,43 @@ export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelect
     return () => window.document.removeEventListener("pointerdown", dismissOnOutsidePointer);
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    function positionMenu() {
+      const trigger = rootRef.current?.querySelector<HTMLButtonElement>(".process-actions-menu__trigger");
+      const menu = menuRef.current;
+      if (!trigger || !menu) return;
+      const triggerRect = trigger.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const gap = 8;
+      const offset = 5;
+      const roomBelow = window.innerHeight - triggerRect.bottom - gap;
+      const roomAbove = triggerRect.top - gap;
+      const below = roomBelow >= menuRect.height || roomBelow >= roomAbove;
+      const idealTop = below ? triggerRect.bottom + offset : triggerRect.top - menuRect.height - offset;
+      setMenuPosition({
+        top: Math.max(gap, Math.min(idealTop, window.innerHeight - menuRect.height - gap)),
+        left: Math.max(gap, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - gap)),
+      });
+    }
+
+    positionMenu();
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+    };
+  }, [open]);
+
   function closeAndRestoreFocus() {
     setOpen(false);
     window.setTimeout(() => rootRef.current?.querySelector<HTMLButtonElement>(".process-actions-menu__trigger")?.focus(), 0);
+  }
+
+  function dismissWhenFocusLeaves(event: FocusEvent<HTMLDivElement>) {
+    if (!rootRef.current?.contains(event.relatedTarget as Node | null)) setOpen(false);
   }
 
   function moveMenuFocus(event: KeyboardEvent<HTMLDivElement>) {
@@ -56,7 +91,7 @@ export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelect
   }
 
   return (
-    <div className="process-actions-menu" ref={rootRef}>
+    <div className="process-actions-menu" ref={rootRef} onBlur={dismissWhenFocusLeaves}>
       <Button
         variant="ghost"
         size="icon"
@@ -70,14 +105,14 @@ export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelect
         <Ellipsis aria-hidden="true" />
       </Button>
       {open && (
-        <div id={menuId} ref={menuRef} className="process-actions-menu__content" role="menu" onKeyDown={moveMenuFocus}>
+        <div id={menuId} ref={menuRef} className="process-actions-menu__content" role="menu" style={menuPosition} onKeyDown={moveMenuFocus}>
           <Button
             variant="ghost"
             role="menuitem"
             tabIndex={-1}
             disabled={!canMoveSelection}
             onClick={() => {
-              setOpen(false);
+              closeAndRestoreFocus();
               onMoveSelection();
             }}
           >
@@ -90,7 +125,7 @@ export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelect
             tabIndex={-1}
             className="process-actions-menu__delete"
             onClick={() => {
-              setOpen(false);
+              closeAndRestoreFocus();
               onDelete();
             }}
           >

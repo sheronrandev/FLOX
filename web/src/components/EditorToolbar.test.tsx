@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { themePresets } from "../domain/app-theme";
 import { createDiagram } from "../domain/diagram";
 import { defaultExportPreferences } from "../domain/preferences";
@@ -62,7 +62,10 @@ describe("editor process and swimlane manager", () => {
     });
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("distinguishes process and lane actions and announces a lane reorder", () => {
     renderToolbar();
@@ -92,5 +95,39 @@ describe("editor process and swimlane manager", () => {
     useDiagramStore.setState({ selectedNodeIds: ["node-request"] });
     fireEvent.click(trigger);
     expect(screen.getByRole("menuitem", { name: "Move selection to this process" })).toBeEnabled();
+  });
+
+  it("returns focus to process settings when its editor is canceled", async () => {
+    renderToolbar();
+    const trigger = screen.getByRole("button", { name: "Process settings for Order approval" });
+    fireEvent.click(trigger);
+    expect(screen.getByLabelText("Process name")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText("Process name")).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("returns focus to Add process after deleting a process", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderToolbar();
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Fulfillment" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete process" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add process" })).toHaveFocus());
+    expect(screen.queryByRole("region", { name: "Fulfillment" })).not.toBeInTheDocument();
+  });
+
+  it("returns focus to the process menu when deletion is canceled", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderToolbar();
+    const trigger = screen.getByRole("button", { name: "More actions for Fulfillment" });
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete process" }));
+
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(screen.getByRole("region", { name: "Fulfillment" })).toBeVisible();
   });
 });

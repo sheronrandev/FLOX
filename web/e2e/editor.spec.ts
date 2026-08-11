@@ -65,19 +65,37 @@ test("supports keyboard focus and mobile-safe layout", async ({ page, isMobile }
 });
 
 test("presents contextual process and swimlane management controls", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 500 });
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
   await page.getByTitle("Add Swimlane").click();
 
+  const processName = page.locator(".process-row__name").first();
+  await expect(processName).toBeVisible();
+  expect((await processName.boundingBox())!.width).toBeGreaterThanOrEqual(80);
   await expect(page.getByRole("button", { name: /Process settings for/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Show .* on canvas/ })).toHaveText("Show on canvas");
   await expect(page.getByRole("button", { name: /Lane settings for/ })).toBeVisible();
 
   const overflow = page.getByRole("button", { name: /More actions for/ }).first();
   await overflow.click();
-  await expect(page.getByRole("menuitem", { name: "Delete process" })).toBeVisible();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem", { name: "Delete process" })).toBeVisible();
+  const menuBox = await menu.boundingBox();
+  const viewport = page.viewportSize();
+  expect(menuBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(menuBox!.x).toBeGreaterThanOrEqual(8);
+  expect(menuBox!.y).toBeGreaterThanOrEqual(8);
+  expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(viewport!.width - 8);
+  expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(viewport!.height - 8);
   await page.keyboard.press("Escape");
   await expect(overflow).toBeFocused();
+
+  await overflow.click();
+  await page.keyboard.press("Tab");
+  await expect(menu).toBeHidden();
+  await expect(page.locator(":focus")).not.toHaveAttribute("role", "menuitem");
 
   const reorder = page.getByRole("button", { name: /Move .* swimlane left/ }).first();
   const target = await reorder.boundingBox();

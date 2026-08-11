@@ -57,5 +57,33 @@ describe("process actions menu", () => {
     fireEvent.click(move);
     expect(onMoveSelection).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "More actions for Claims approval" })).toHaveFocus());
+  });
+
+  it("closes when focus tabs away and restores focus after a non-destructive action", async () => {
+    const onDelete = vi.fn();
+    render(<>
+      <ProcessActionsMenu
+        processName="Claims approval"
+        canMoveSelection
+        onMoveSelection={() => undefined}
+        onDelete={onDelete}
+      />
+      <button type="button">Outside control</button>
+    </>);
+
+    const trigger = screen.getByRole("button", { name: "More actions for Claims approval" });
+    const outside = screen.getByRole("button", { name: "Outside control" });
+    fireEvent.click(trigger);
+    const move = screen.getByRole("menuitem", { name: "Move selection to this process" });
+    await waitFor(() => expect(move).toHaveFocus());
+    fireEvent.blur(move, { relatedTarget: outside });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    const remove = screen.getByRole("menuitem", { name: "Delete process" });
+    fireEvent.click(remove);
+    expect(onDelete).toHaveBeenCalledOnce();
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });

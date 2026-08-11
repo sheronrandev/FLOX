@@ -141,6 +141,12 @@ export function EditorToolbar({ collapsed, onCollapsedChange, theme, onThemeChan
     setActiveProcess(id); setOpenProcessId(id); setProcessDraftName(process.name);
   }
 
+  function closeProcessEditor(processId: string) {
+    setOpenProcessId(null);
+    setProcessDraftName("");
+    window.setTimeout(() => window.document.getElementById(`process-properties-${processId}`)?.focus(), 0);
+  }
+
   function returnLaneFocus(laneId: string) {
     window.setTimeout(() => window.document.getElementById(`lane-properties-${laneId}`)?.focus(), 0);
   }
@@ -238,7 +244,7 @@ export function EditorToolbar({ collapsed, onCollapsedChange, theme, onThemeChan
 
       {!collapsed && (
         <div className="lane-manager process-manager" inert={readOnly}>
-          <div className="lane-manager__heading"><span>Processes</span><Button variant="ghost" size="sm" onClick={() => { if (confirmStructuralDrafts()) setAddProcessOpen(true); }}><Plus /> Add process</Button></div>
+          <div className="lane-manager__heading"><span>Processes</span><Button id="add-process-trigger" variant="ghost" size="sm" onClick={() => { if (confirmStructuralDrafts()) setAddProcessOpen(true); }}><Plus /> Add process</Button></div>
           {addProcessOpen && <form className="process-editor-disclosure" onSubmit={(event) => { event.preventDefault(); const name = processName.trim(); if (!name) return; addProcess(name); setAddProcessOpen(false); setProcessName(""); }}>
             <label className="property-field"><span>Process name</span><input autoFocus required maxLength={120} value={processName} onChange={(event) => setProcessName(event.target.value)} /></label>
             <div className="lane-form-actions"><Button type="button" variant="outline" size="sm" onClick={() => { setAddProcessOpen(false); setProcessName(""); }}>Cancel</Button><Button type="submit" size="sm" disabled={!processName.trim()}>Save</Button></div>
@@ -251,16 +257,23 @@ export function EditorToolbar({ collapsed, onCollapsedChange, theme, onThemeChan
                 processName={process.name}
                 canMoveSelection={canMoveSelectionTo(process.id)}
                 onMoveSelection={() => moveSelectionTo(process.id, process.name)}
-                onDelete={() => { if (confirmStructuralDrafts()) removeProcess(process.id, (message) => window.confirm(message)); }}
+                onDelete={() => {
+                  if (!confirmStructuralDrafts()) return;
+                  removeProcess(process.id, (message) => window.confirm(message));
+                  window.setTimeout(() => {
+                    const processWasDeleted = !useDiagramStore.getState().document.processes.some((entry) => entry.id === process.id);
+                    if (processWasDeleted) window.document.getElementById("add-process-trigger")?.focus();
+                  }, 0);
+                }}
               />
             </div>
             <div className="process-row__actions">
               <Button variant="ghost" size="sm" onClick={() => { if (confirmStructuralDrafts()) { setActiveProcess(process.id); addLane(process.id); } }}><Columns3 /> Add lane</Button>
               <Button variant="ghost" size="sm" aria-label={`Show ${process.name} on canvas`} onClick={() => { setActiveProcess(process.id); window.dispatchEvent(new CustomEvent("flox:focus-process", { detail: process.id })); }}><Crosshair /> Show on canvas</Button>
             </div>
-            {openProcessId === process.id && <form id={`process-editor-${process.id}`} className="process-editor-disclosure" onSubmit={(event) => { event.preventDefault(); updateProcess(process.id, { name: processDraftName }); setOpenProcessId(null); window.setTimeout(() => window.document.getElementById(`process-properties-${process.id}`)?.focus(), 0); }}>
+            {openProcessId === process.id && <form id={`process-editor-${process.id}`} className="process-editor-disclosure" onSubmit={(event) => { event.preventDefault(); updateProcess(process.id, { name: processDraftName }); closeProcessEditor(process.id); }}>
               <label className="property-field"><span>Process name</span><input autoFocus required maxLength={120} value={processDraftName} onChange={(event) => setProcessDraftName(event.target.value)} /></label>
-              <div className="lane-form-actions"><Button type="button" variant="outline" size="sm" onClick={() => { setOpenProcessId(null); setProcessDraftName(""); }}>Cancel</Button><Button type="submit" size="sm" disabled={!processDraftDirty || !processDraftName.trim()}>Save</Button></div>
+              <div className="lane-form-actions"><Button type="button" variant="outline" size="sm" onClick={() => closeProcessEditor(process.id)}>Cancel</Button><Button type="submit" size="sm" disabled={!processDraftDirty || !processDraftName.trim()}>Save</Button></div>
             </form>}
             <div className="process-lanes">
               <div className="process-lanes__heading"><span>Swimlanes</span><strong aria-label={`${process.lanes.length} swimlanes`}>{process.lanes.length}</strong></div>
