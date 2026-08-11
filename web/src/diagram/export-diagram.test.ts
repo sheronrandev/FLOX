@@ -25,6 +25,16 @@ describe("diagram image export", () => {
     expect(transparent).not.toContain(`fill="${document.appearance.canvasColor}"`);
   });
 
+  it("rejects direct image exports that contain more than one process", async () => {
+    const document = createDiagram("Export");
+    document.processes.push({
+      id: "process-second", name: "Second", position: { x: 0, y: 0 },
+      lanes: [], nodes: [], edges: [], swimlaneLayout: { heightMode: "automatic", height: 760 },
+    });
+
+    await expect(exportDiagramImage(document, "svg", { defaultFormat: "svg", transparentBackground: false, imageScale: 1 })).rejects.toThrow("Image export supports exactly one process.");
+  });
+
   it("exports structured notations, styled lanes, and guard labels", () => {
     const document = createDiagram("Complete export");
     document.processes[0].nodes = [

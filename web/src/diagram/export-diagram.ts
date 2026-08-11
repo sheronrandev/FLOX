@@ -149,7 +149,7 @@ export async function svgToPngBlob(svg: string, scale: 1 | 2 | 3 = 1): Promise<B
   const height = Number(size?.[2] ?? 0) * scale;
   if (!width || !height) throw new Error("Could not determine diagram dimensions");
   if (width > 16_384 || height > 16_384 || width * height > 268_435_456) {
-    throw new Error("Combined PNG is too large for this browser. Choose Export separately.");
+    throw new Error("PNG at the selected scale is too large for this browser. Choose a lower PNG quality or export SVG.");
   }
   const image = new Image();
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
@@ -173,6 +173,7 @@ export async function svgToPngBlob(svg: string, scale: 1 | 2 | 3 = 1): Promise<B
 }
 
 export async function exportDiagramImage(document: DiagramDocument, format: "svg" | "png", preferences: ExportPreferences, filenameBase?: string) {
+  if (document.processes.length !== 1) throw new Error("Image export supports exactly one process.");
   const svg = diagramToSvg(document, preferences.transparentBackground);
   const base = filenameBase === undefined
     ? safeExportName(document.metadata.title)

@@ -82,6 +82,18 @@ describe("workspace export", () => {
     }
   });
 
+  it("forwards PNG scale and background preferences for every successful process entry", async () => {
+    const entries = buildProjectProcessManifest(record("claims", "Claims", "2026-01-01T00:00:00.000Z"), "png");
+    const archive = unzipSync(await encodeExportArchive(entries, "png", { ...preferences, transparentBackground: true, imageScale: 3 }));
+
+    expect(Object.keys(archive)).toEqual(["Claims-001.png", "Claims-002.png"]);
+    expect(svgToPngBlob).toHaveBeenCalledTimes(2);
+    expect(svgToPngBlob.mock.calls.map(([, scale]) => scale)).toEqual([3, 3]);
+    for (const [svg] of svgToPngBlob.mock.calls) {
+      expect(svg).not.toContain(`fill="${entries[0].document.appearance.canvasColor}"`);
+    }
+  });
+
   it("serializes diagram-wise JSON entries as one valid process document", async () => {
     const entries = buildProjectProcessManifest(record("claims", "Claims", "2026-01-01T00:00:00.000Z"), "json");
     const archive = unzipSync(await encodeExportArchive(entries, "json", preferences));
