@@ -52,7 +52,7 @@ describe("process export manifests", () => {
   });
 
   it("blocks Windows device basenames and bounds every safe name segment", () => {
-    for (const title of ["CON", "con.txt", "PrN", "AUX.json", "NUL", "COM1", "com9.log", "LPT1", "lpt9.txt"]) {
+    for (const title of ["CON", "con.txt", "PrN", "AUX.json", "NUL", "COM1", "com9.log", "LPT1", "lpt9.txt", "COM¹", "com².svg", "COM³", "LPT¹", "lpt².png", "LPT³"]) {
       expect(safeArchiveSegment(title)).toBe("activity-diagram");
     }
     expect(safeArchiveSegment("COM10")).toBe("COM10");
@@ -62,6 +62,11 @@ describe("process export manifests", () => {
 
   it("numbers zero-based process indexes in export filenames", () => {
     expect(processExportFilename("Claims Project", 1, "png")).toBe("Claims-Project-002.png");
+  });
+
+  it("keeps first and hundredth process suffixes after the bounded safe title", () => {
+    expect(processExportFilename("A".repeat(80), 0, "svg")).toBe(`${"A".repeat(80)}-001.svg`);
+    expect(processExportFilename("B".repeat(120), 99, "png")).toBe(`${"B".repeat(80)}-100.png`);
   });
 
   it("rejects process indexes outside the supported one-through-one-hundred range", () => {

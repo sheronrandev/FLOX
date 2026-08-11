@@ -115,7 +115,7 @@ const processSchema = z.object({
 
 export const diagramSchema = z.object({
   format: z.literal(DIAGRAM_FORMAT), version: z.literal(DIAGRAM_VERSION),
-  metadata: z.object({ title: z.string().min(1).max(120), createdAt: z.string().datetime(), updatedAt: z.string().datetime() }).strict(),
+  metadata: z.object({ title: z.string().min(1).max(120).refine((title) => title.trim().length > 0, "Diagram title cannot be blank"), createdAt: z.string().datetime(), updatedAt: z.string().datetime() }).strict(),
   processes: z.array(processSchema).max(100), appearance: appearanceSchema.default(defaultDiagramAppearance),
 }).strict().superRefine((document, context) => {
   const ids = new Set<string>();

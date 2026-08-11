@@ -93,6 +93,13 @@ describe("v4 nested diagram validation", () => {
     assert.throws(() => validateDiagram(blankLaneReference), /node|lane/i);
   });
 
+  it("rejects an export-shaped serialized document with a whitespace-only metadata title", () => {
+    const exported = JSON.parse(JSON.stringify(selectedProcessExport()));
+    exported.metadata.title = "   ";
+
+    assert.throws(() => validateDiagram(exported), /metadata/i);
+  });
+
   it("returns a validation error for malformed legacy array members", () => {
     const legacy = {
       format: "activity-diagram", version: 3,

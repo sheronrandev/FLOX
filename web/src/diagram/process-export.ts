@@ -18,7 +18,7 @@ const maxArchiveSegmentLength = 89;
 const maxArchivePathLength = 170;
 const controlCharacters = /[\u0000-\u001f\u007f-\u009f]/g;
 const unsafePunctuation = /[<>:."|?*`~!#$%&'()+,;=@\[\]^{}]/g;
-const windowsDeviceBasename = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
+const windowsDeviceBasename = /^(?:con|prn|aux|nul|com(?:[1-9]|[¹²³])|lpt(?:[1-9]|[¹²³]))(?:\.|$)/i;
 
 export function safeArchiveSegment(value: string): string {
   if (windowsDeviceBasename.test(value.trim())) return fallbackSegment;

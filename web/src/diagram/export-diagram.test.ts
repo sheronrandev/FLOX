@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDiagram } from "../domain/diagram";
+import { processExportFilename } from "./process-export";
 import { diagramToSvg, exportDiagramImage, safeExportName } from "./export-diagram";
 
 describe("diagram image export", () => {
@@ -56,6 +57,28 @@ describe("diagram image export", () => {
     await exportDiagramImage(createDiagram("Claims"), "svg", { defaultFormat: "svg", transparentBackground: false, imageScale: 1 }, "Claims-002");
 
     expect(link.download).toBe("Claims-002.svg");
+  });
+
+  it.each([
+    { format: "svg" as const, title: "A".repeat(80), processIndex: 0, expected: `${"A".repeat(80)}-001.svg` },
+    { format: "png" as const, title: "B".repeat(120), processIndex: 99, expected: `${"B".repeat(80)}-100.png` },
+  ])("preserves the process-order suffix for a bounded direct $format download", async ({ format, title, processIndex, expected }) => {
+    const link = { href: "", download: "", click: vi.fn() };
+    const context = { scale: vi.fn(), drawImage: vi.fn() };
+    const canvas = { width: 0, height: 0, getContext: vi.fn(() => context), toBlob: (handler: (blob: Blob) => void) => handler(new Blob(["png"])) };
+    class LoadedImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    }
+    vi.stubGlobal("Image", LoadedImage);
+    vi.stubGlobal("URL", { createObjectURL: vi.fn(() => "blob:export"), revokeObjectURL: vi.fn() });
+    vi.stubGlobal("window", { document: { createElement: vi.fn((tag: string) => tag === "canvas" ? canvas : link) }, setTimeout: (handler: () => void) => handler() });
+    const filename = processExportFilename(title, processIndex, format);
+
+    await exportDiagramImage(createDiagram(title), format, { defaultFormat: format, transparentBackground: false, imageScale: 1 }, filename.slice(0, -(format.length + 1)));
+
+    expect(link.download).toBe(expected);
   });
 
   it("uses the metadata-derived filename when no direct filename base is supplied", async () => {

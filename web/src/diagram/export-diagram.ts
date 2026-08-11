@@ -9,6 +9,12 @@ import { safeArchiveSegment } from "./process-export";
 const xml = (value: string) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[character]!);
 export const safeExportName = safeArchiveSegment;
 
+function safeSuppliedExportName(filenameBase: string): string {
+  const stripped = filenameBase.replace(/\.(?:png|svg)$/i, "");
+  const numbered = /^(.*)-(\d{3})$/.exec(stripped);
+  return numbered ? `${safeExportName(numbered[1])}-${numbered[2]}` : safeExportName(stripped);
+}
+
 function centeredText(x: number, y: number, value: string, color: string, size = 13, weight = 600) {
   return `<text x="${x}" y="${y}" fill="${color}" font-family="Inter,Segoe UI,sans-serif" font-size="${size}" font-weight="${weight}" text-anchor="middle" dominant-baseline="middle">${xml(value)}</text>`;
 }
@@ -170,7 +176,7 @@ export async function exportDiagramImage(document: DiagramDocument, format: "svg
   const svg = diagramToSvg(document, preferences.transparentBackground);
   const base = filenameBase === undefined
     ? safeExportName(document.metadata.title)
-    : safeExportName(filenameBase.replace(/\.(?:png|svg)$/i, ""));
+    : safeSuppliedExportName(filenameBase);
   if (format === "svg") {
     downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), `${base}.svg`);
     return;

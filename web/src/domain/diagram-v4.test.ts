@@ -112,6 +112,13 @@ describe("v4 nested activity processes", () => {
     expect(() => parseDiagram(blankLaneReference)).toThrow();
   });
 
+  it("rejects an export-shaped serialized document with a whitespace-only metadata title", () => {
+    const exported = JSON.parse(JSON.stringify(createDiagram("Claims")));
+    exported.metadata.title = "   ";
+
+    expect(() => parseDiagram(exported)).toThrow();
+  });
+
   it("rejects malformed and unknown legacy notation instead of coercing it", () => {
     const malformed = v3Document();
     malformed.nodes = [null] as never;

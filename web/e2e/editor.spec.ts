@@ -4,7 +4,7 @@ import { parseDiagram, type DiagramDocument } from "../src/domain/diagram";
 
 function exportFixture(title: string, processes: Array<{ name: string; activity: string }>): DiagramDocument {
   const now = new Date().toISOString();
-  const prefix = title.toLowerCase().replace(/\s+/g, "-");
+  const prefix = title.toLowerCase().replace(/\s+/g, "-").slice(0, 60);
   return parseDiagram({
     format: "activity-diagram",
     version: 4,
@@ -340,6 +340,20 @@ test("process-level export downloads isolated diagrams and importable JSON scope
   await expect(page.locator(".editor-statusbar")).toContainText("2 diagrams");
   await expect(page.getByRole("button", { name: "Intake", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Approval", exact: true })).toBeVisible();
+});
+
+test("preserves the numbered suffix on long-title direct SVG and PNG downloads", async ({ page }) => {
+  const title = "L".repeat(80);
+  await createExportProject(page, title, [{ name: "Intake", activity: "First Task" }]);
+  await page.getByTitle("Export image").click();
+  const dialog = page.getByRole("dialog", { name: "Export diagrams" });
+
+  for (const format of ["SVG", "PNG"] as const) {
+    await dialog.getByLabel(format).check();
+    const downloadEvent = page.waitForEvent("download");
+    await dialog.getByRole("button", { name: `Export ${format}`, exact: true }).click();
+    expect((await readDownload(await downloadEvent)).filename).toBe(`${title}-001.${format.toLowerCase()}`);
+  }
 });
 
 test("connects visible handles and edits a selectable connector", async ({ page }) => {
