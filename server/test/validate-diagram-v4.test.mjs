@@ -78,6 +78,21 @@ describe("v4 nested diagram validation", () => {
     assert.throws(() => validateDiagram(tooMany), /limit/i);
   });
 
+  it("rejects export-shaped serialized documents with blank process names or lane references", () => {
+    const exported = selectedProcessExport();
+    exported.processes[0].lanes.push({ id: "lane-a", name: "Owner", width: 260, colorIndex: 0 });
+    exported.processes[0].nodes.push({ id: "node-a", type: "activity", position: { x: 0, y: 0 }, label: "Receive", laneId: "lane-a" });
+    const serialized = JSON.stringify(exported);
+
+    const blankProcess = JSON.parse(serialized);
+    blankProcess.processes[0].name = "   ";
+    assert.throws(() => validateDiagram(blankProcess), /process/i);
+
+    const blankLaneReference = JSON.parse(serialized);
+    blankLaneReference.processes[0].nodes[0].laneId = "";
+    assert.throws(() => validateDiagram(blankLaneReference), /node|lane/i);
+  });
+
   it("returns a validation error for malformed legacy array members", () => {
     const legacy = {
       format: "activity-diagram", version: 3,

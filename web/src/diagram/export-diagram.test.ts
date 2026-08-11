@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDiagram } from "../domain/diagram";
-import { diagramToSvg, exportDiagramImage } from "./export-diagram";
+import { diagramToSvg, exportDiagramImage, safeExportName } from "./export-diagram";
 
 describe("diagram image export", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("uses the shared bounded Windows-safe policy for direct filenames", () => {
+    expect(safeExportName("CON.svg")).toBe("activity-diagram");
+    expect(safeExportName("cOm1")).toBe("activity-diagram");
+    expect(safeExportName("A".repeat(200))).toBe("A".repeat(80));
   });
 
   it("creates escaped SVG and supports transparent backgrounds", () => {

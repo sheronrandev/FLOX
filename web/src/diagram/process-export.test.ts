@@ -51,6 +51,15 @@ describe("process export manifests", () => {
     }
   });
 
+  it("blocks Windows device basenames and bounds every safe name segment", () => {
+    for (const title of ["CON", "con.txt", "PrN", "AUX.json", "NUL", "COM1", "com9.log", "LPT1", "lpt9.txt"]) {
+      expect(safeArchiveSegment(title)).toBe("activity-diagram");
+    }
+    expect(safeArchiveSegment("COM10")).toBe("COM10");
+    expect(safeArchiveSegment("LPT0")).toBe("LPT0");
+    expect(safeArchiveSegment("A".repeat(200))).toBe("A".repeat(80));
+  });
+
   it("numbers zero-based process indexes in export filenames", () => {
     expect(processExportFilename("Claims Project", 1, "png")).toBe("Claims-Project-002.png");
   });
@@ -81,7 +90,7 @@ describe("process export manifests", () => {
 
     const manifest = buildWorkspaceManifest([first, second], "svg", "diagram-wise");
 
-    expect(manifest.map((entry) => entry.path)).toEqual(["Claims/Claims-001.svg", "Claims-2/Claims-001.svg"]);
+    expect(manifest.map((entry) => entry.path)).toEqual(["Claims/Claims-001.svg", "Claims-2/Claims-2-001.svg"]);
     expect(manifest.every((entry) => parseDiagram(entry.document).processes.length === 1)).toBe(true);
   });
 
@@ -94,8 +103,24 @@ describe("process export manifests", () => {
 
     expect(manifest.map((entry) => entry.path)).toEqual([
       "Claims/Claims-001.svg",
-      "Claims-2/Claims-001.svg",
-      "Claims-2-2/Claims-2-001.svg",
+      "Claims-2/Claims-2-001.svg",
+      "Claims-2-2/Claims-2-2-001.svg",
+    ]);
+  });
+
+  it("resolves case-only and literal-suffix collisions without changing folder-to-leaf identity", () => {
+    const manifest = buildWorkspaceManifest([
+      record("claims-upper", "Claims"),
+      record("claims-lower", "claims"),
+      record("claims-literal", "Claims-2"),
+      record("claims-third", "CLAIMS"),
+    ], "svg", "diagram-wise");
+
+    expect(manifest.map((entry) => entry.path)).toEqual([
+      "Claims/Claims-001.svg",
+      "claims-2/claims-2-001.svg",
+      "Claims-2-2/Claims-2-2-001.svg",
+      "CLAIMS-3/CLAIMS-3-001.svg",
     ]);
   });
 
@@ -108,17 +133,17 @@ describe("process export manifests", () => {
 
     expect(paths).toEqual([
       "Claims/Claims-001.svg",
-      "Claims-2/Claims-001.svg",
+      "Claims-2/Claims-2-001.svg",
       "activity-diagram/activity-diagram-001.svg",
-      "activity-diagram-2/activity-diagram-001.svg",
+      "activity-diagram-2/activity-diagram-2-001.svg",
       "A-B/A-B-001.svg",
-      "A-B-2/A-B-001.svg",
+      "A-B-2/A-B-2-001.svg",
       "AB/AB-001.svg",
-      "activity-diagram-3/activity-diagram-001.svg",
-      "Claims-3/Claims-001.svg",
-      "Claims-4/Claims-001.svg",
-      "Claims-2-2/Claims-2-001.svg",
-      "Claims-5/Claims-001.svg",
+      "activity-diagram-3/activity-diagram-3-001.svg",
+      "Claims-3/Claims-3-001.svg",
+      "Claims-4/Claims-4-001.svg",
+      "Claims-2-2/Claims-2-2-001.svg",
+      "Claims-5/Claims-5-001.svg",
     ]);
     expect(new Set(paths).size).toBe(paths.length);
 
@@ -128,6 +153,18 @@ describe("process export manifests", () => {
       expect(entry.path.split("/")).toHaveLength(2);
       expect(entry.path).not.toContain(entry.projectId);
       expect(entry.path).not.toContain(entry.document.processes[0].id);
+    }
+  });
+
+  it("keeps every workspace segment and full path within fixed limits", () => {
+    const title = "A".repeat(120);
+    const manifest = buildWorkspaceManifest([record("one", title), record("two", title)], "svg", "diagram-wise");
+
+    for (const entry of manifest) {
+      const segments = entry.path.split("/");
+      expect(segments.every((segment) => segment.length <= 89)).toBe(true);
+      expect(entry.path.length).toBeLessThanOrEqual(170);
+      expect(segments[1].startsWith(`${segments[0]}-001`)).toBe(true);
     }
   });
 

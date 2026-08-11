@@ -13,13 +13,29 @@ export function orderWorkspaceRecords(records: ProjectRecord[], currentProjectId
   });
 }
 
+function exportEntryLabel(entry: ExportManifestEntry): string {
+  const process = entry.processOrder === null ? "" : `, process ${String(entry.processOrder).padStart(3, "0")}`;
+  return `project “${entry.projectName}”${process}`;
+}
+
+function entryFailure(entry: ExportManifestEntry, reason: unknown): Error {
+  const cause = reason instanceof Error ? reason : new Error(String(reason));
+  return new Error(`Could not export ${exportEntryLabel(entry)}: ${cause.message}`, { cause });
+}
+
 function validateEntries(entries: ExportManifestEntry[], format: ExportFormat): ExportManifestEntry[] {
-  const validatedEntries = entries.map((entry) => ({ ...entry, document: parseDiagram(entry.document) }));
+  const validatedEntries: ExportManifestEntry[] = [];
   const paths = new Set<string>();
-  for (const entry of validatedEntries) {
-    if (paths.has(entry.path)) throw new Error("Duplicate export archive path");
-    if (format !== "json" && entry.document.processes.length !== 1) throw new Error("Image export entries must contain exactly one process");
-    paths.add(entry.path);
+  for (const entry of entries) {
+    try {
+      const validated = { ...entry, document: parseDiagram(entry.document) };
+      if (paths.has(validated.path)) throw new Error("Duplicate export archive path");
+      if (format !== "json" && validated.document.processes.length !== 1) throw new Error("Image export entries must contain exactly one process");
+      paths.add(validated.path);
+      validatedEntries.push(validated);
+    } catch (error) {
+      throw entryFailure(entry, error);
+    }
   }
   return validatedEntries;
 }
@@ -36,14 +52,18 @@ export async function encodeExportArchive(
   for (let index = 0; index < total; index += 1) {
     const entry = validatedEntries[index];
     onProgress(index + 1, total);
-    if (format === "json") {
-      files[entry.path] = strToU8(JSON.stringify(entry.document, null, 2));
-      continue;
+    try {
+      if (format === "json") {
+        files[entry.path] = strToU8(JSON.stringify(entry.document, null, 2));
+        continue;
+      }
+      const svg = diagramToSvg(entry.document, preferences.transparentBackground);
+      files[entry.path] = format === "svg"
+        ? strToU8(svg)
+        : new Uint8Array(await (await svgToPngBlob(svg, preferences.imageScale)).arrayBuffer());
+    } catch (error) {
+      throw entryFailure(entry, error);
     }
-    const svg = diagramToSvg(entry.document, preferences.transparentBackground);
-    files[entry.path] = format === "svg"
-      ? strToU8(svg)
-      : new Uint8Array(await (await svgToPngBlob(svg, preferences.imageScale)).arrayBuffer());
   }
   return zipSync(files);
 }

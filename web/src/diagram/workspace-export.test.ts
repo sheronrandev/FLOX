@@ -34,6 +34,15 @@ function record(id: string, title: string, updatedAt: string, processNames = ["I
   return { id, title, document, createdAt: document.metadata.createdAt, updatedAt };
 }
 
+async function captureError(promise: Promise<unknown>): Promise<Error & { cause?: unknown }> {
+  try {
+    await promise;
+  } catch (error) {
+    return error as Error & { cause?: unknown };
+  }
+  throw new Error("Expected the operation to reject");
+}
+
 describe("workspace export", () => {
   beforeEach(() => {
     svgToPngBlob.mockReset();
@@ -105,12 +114,16 @@ describe("workspace export", () => {
     const valid = buildProjectProcessManifest(record("claims", "Claims", "2026-01-01T00:00:00.000Z", ["Claims intake"]), "png")[0];
     const invalid: ExportManifestEntry = {
       ...valid,
+      processOrder: 2,
       path: "Claims-002.png",
       document: { ...valid.document, processes: [{ ...valid.document.processes[0], name: "" }] },
     };
     const progress = vi.fn();
 
-    await expect(encodeExportArchive([valid, invalid], "png", preferences, progress)).rejects.toThrow();
+    const cause = await captureError(encodeExportArchive([valid, invalid], "png", preferences, progress));
+
+    expect(cause.message).toMatch(/Claims.*process 002/i);
+    expect(cause.cause).toBeInstanceOf(Error);
 
     expect(progress).not.toHaveBeenCalled();
     expect(svgToPngBlob).not.toHaveBeenCalled();
@@ -144,8 +157,11 @@ describe("workspace export", () => {
 
   it("rejects when a PNG conversion fails without producing an archive", async () => {
     const [entry] = buildProjectProcessManifest(record("claims", "Claims", "2026-01-01T00:00:00.000Z", ["Claims intake"]), "png");
-    svgToPngBlob.mockRejectedValueOnce(new Error("PNG unavailable"));
+    const pngFailure = new Error("PNG unavailable");
+    svgToPngBlob.mockRejectedValueOnce(pngFailure);
 
-    await expect(encodeExportArchive([entry], "png", preferences)).rejects.toThrow("PNG unavailable");
+    const error = await captureError(encodeExportArchive([entry], "png", preferences));
+    expect(error.message).toMatch(/Claims.*process 001.*PNG unavailable/i);
+    expect(error.cause).toBe(pngFailure);
   });
 });

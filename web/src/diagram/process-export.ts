@@ -13,10 +13,15 @@ export interface ExportManifestEntry {
 }
 
 const fallbackSegment = "activity-diagram";
+const maxNameSegmentLength = 80;
+const maxArchiveSegmentLength = 89;
+const maxArchivePathLength = 170;
 const controlCharacters = /[\u0000-\u001f\u007f-\u009f]/g;
-const unsafePunctuation = /[<>:"|?*`~!#$%&'()+,;=@\[\]^{}]/g;
+const unsafePunctuation = /[<>:."|?*`~!#$%&'()+,;=@\[\]^{}]/g;
+const windowsDeviceBasename = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 
 export function safeArchiveSegment(value: string): string {
+  if (windowsDeviceBasename.test(value.trim())) return fallbackSegment;
   const safe = value
     .replace(controlCharacters, "")
     .replace(/[\\/]/g, "-")
@@ -24,7 +29,10 @@ export function safeArchiveSegment(value: string): string {
     .replace(unsafePunctuation, "-")
     .replace(/-+/g, "-")
     .replace(/^[.-]+|[.-]+$/g, "");
-  return safe === "." || safe === ".." || safe.length === 0 ? fallbackSegment : safe;
+  const bounded = safe.slice(0, maxNameSegmentLength).replace(/[.-]+$/g, "");
+  return bounded === "." || bounded === ".." || bounded.length === 0 || windowsDeviceBasename.test(bounded)
+    ? fallbackSegment
+    : bounded;
 }
 
 export function processExportFilename(projectTitle: string, processIndex: number, format: ExportFormat): string {
@@ -62,20 +70,31 @@ function validatedDocument(record: ProjectRecord): DiagramDocument {
 }
 
 function uniqueFolder(base: string, usedFolders: Set<string>, nextSuffix: Map<string, number>): string {
-  if (!usedFolders.has(base)) {
-    usedFolders.add(base);
-    nextSuffix.set(base, 2);
+  const baseKey = base.toLocaleLowerCase("en-US");
+  if (!usedFolders.has(baseKey)) {
+    usedFolders.add(baseKey);
+    nextSuffix.set(baseKey, 2);
     return base;
   }
-  let suffix = nextSuffix.get(base) ?? 2;
-  let folder = `${base}-${suffix}`;
-  while (usedFolders.has(folder)) {
+  let suffix = nextSuffix.get(baseKey) ?? 2;
+  let suffixText = `-${suffix}`;
+  let folder = `${base.slice(0, maxNameSegmentLength - suffixText.length)}${suffixText}`;
+  while (usedFolders.has(folder.toLocaleLowerCase("en-US"))) {
     suffix += 1;
-    folder = `${base}-${suffix}`;
+    suffixText = `-${suffix}`;
+    folder = `${base.slice(0, maxNameSegmentLength - suffixText.length)}${suffixText}`;
   }
-  usedFolders.add(folder);
-  nextSuffix.set(base, suffix + 1);
+  usedFolders.add(folder.toLocaleLowerCase("en-US"));
+  nextSuffix.set(baseKey, suffix + 1);
   return folder;
+}
+
+function validArchivePathSegment(segment: string): boolean {
+  return segment.length > 0
+    && segment.length <= maxArchiveSegmentLength
+    && !/[\u0000-\u001f\u007f-\u009f\\/:*?"<>|]/.test(segment)
+    && !/^[.]|[.]$/.test(segment)
+    && !windowsDeviceBasename.test(segment);
 }
 
 function validateManifest(entries: ExportManifestEntry[]): ExportManifestEntry[] {
@@ -85,7 +104,7 @@ function validateManifest(entries: ExportManifestEntry[]): ExportManifestEntry[]
       throw new Error("Invalid export manifest entry");
     }
     const segments = entry.path.split("/");
-    if (segments.length === 0 || segments.some((segment) => !segment || safeArchiveSegment(segment) !== segment) || paths.has(entry.path)) {
+    if (entry.path.length > maxArchivePathLength || segments.length === 0 || segments.some((segment) => !validArchivePathSegment(segment)) || paths.has(entry.path)) {
       throw new Error("Invalid export manifest path");
     }
     parseDiagram(entry.document);
@@ -97,12 +116,13 @@ function validateManifest(entries: ExportManifestEntry[]): ExportManifestEntry[]
 export function buildProjectProcessManifest(record: ProjectRecord, format: ExportFormat, directory?: string): ExportManifestEntry[] {
   const document = validatedDocument(record);
   const name = projectName(record, document);
-  const prefix = directory === undefined ? "" : `${safeArchiveSegment(directory)}/`;
+  const exportBase = directory === undefined ? safeArchiveSegment(name) : safeArchiveSegment(directory);
+  const prefix = directory === undefined ? "" : `${exportBase}/`;
   const entries = document.processes.map((process, index) => ({
     projectId: record.id,
     projectName: name,
     processOrder: index + 1,
-    path: `${prefix}${processExportFilename(name, index, format)}`,
+    path: `${prefix}${processExportFilename(exportBase, index, format)}`,
     document: sliceProcessDocument(document, process.id),
   }));
   return validateManifest(entries);

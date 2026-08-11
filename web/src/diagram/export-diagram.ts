@@ -4,9 +4,10 @@ import { getSwimlanePoolGeometry } from "../domain/swimlane-layout";
 import type { ExportPreferences } from "../domain/preferences";
 import { routeAll, type Point } from "./routing";
 import { flattenProcesses } from "../domain/process-layout";
+import { safeArchiveSegment } from "./process-export";
 
 const xml = (value: string) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[character]!);
-export const safeExportName = (title: string) => title.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-|-$/g, "") || "activity-diagram";
+export const safeExportName = safeArchiveSegment;
 
 function centeredText(x: number, y: number, value: string, color: string, size = 13, weight = 600) {
   return `<text x="${x}" y="${y}" fill="${color}" font-family="Inter,Segoe UI,sans-serif" font-size="${size}" font-weight="${weight}" text-anchor="middle" dominant-baseline="middle">${xml(value)}</text>`;
