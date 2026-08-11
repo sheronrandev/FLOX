@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDiagram, parseDiagram, type DiagramDocument } from "../domain/diagram";
 import type { ExportPreferences } from "../domain/preferences";
@@ -100,7 +100,9 @@ afterEach(cleanup);
 describe("format-specific export scopes", () => {
   it("shows image scopes for one multi-process project and JSON organization only for all-in-one", () => {
     renderDialog();
+    const exactScopeName = { name: "Scope", exact: true } as const;
 
+    expect(screen.getByRole("group", exactScopeName)).toBeVisible();
     expect(screen.getByLabelText("Export selected")).toBeChecked();
     expect(screen.getByLabelText("Export separately")).toBeVisible();
     expect(screen.getByLabelText("All-in-one")).toBeVisible();
@@ -251,6 +253,35 @@ describe("archive exports", () => {
 });
 
 describe("PNG export preferences", () => {
+  it.each([
+    ["close button", () => fireEvent.click(screen.getByRole("button", { name: "Close export" }))],
+    ["Cancel button", () => fireEvent.click(screen.getByRole("button", { name: "Cancel" }))],
+    ["backdrop", () => fireEvent.mouseDown(screen.getByRole("presentation"))],
+    ["Escape", () => fireEvent.keyDown(document, { key: "Escape" })],
+  ])("blocks the %s while PNG export is pending and restores normal close afterward", async (_path, attemptClose) => {
+    let finishExport!: () => void;
+    browserExports.exportDiagramImage.mockImplementationOnce(async () => await new Promise<void>((resolve) => { finishExport = resolve; }));
+    const onClose = vi.fn();
+    const onDefaultsChange = vi.fn();
+    renderDialog({ onClose, onDefaultsChange });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Remember as default/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }));
+    await waitFor(() => expect(browserExports.exportDiagramImage).toHaveBeenCalledTimes(1));
+
+    attemptClose();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onDefaultsChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Close export" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+
+    await act(async () => finishExport());
+    await waitFor(() => expect(onDefaultsChange).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "Close export" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Close export" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("enables 1x/2x/3x and remembers scale only after a successful selected PNG export", async () => {
     const onDefaultsChange = vi.fn();
     renderDialog({ onDefaultsChange });

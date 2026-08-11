@@ -60,7 +60,12 @@ export function ExportDialog({
   const [imageScale, setImageScale] = useState<1 | 2 | 3>(defaults.imageScale);
   const [rememberScale, setRememberScale] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
-  useDialogFocus(dialogRef, onClose);
+
+  function requestClose() {
+    if (!exporting) onClose();
+  }
+
+  useDialogFocus(dialogRef, requestClose);
 
   const selectedUnavailable = scope === "selected" && activeProcessId === null;
   const archive = scope === "separate" || scope === "all-in-one";
@@ -169,12 +174,12 @@ export function ExportDialog({
     }
   }
 
-  return createPortal(<div className="export-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+  return createPortal(<div className="export-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
     <section ref={dialogRef} className="export-dialog export-dialog--workspace" role="dialog" aria-modal="true" aria-labelledby="export-title" tabIndex={-1}>
-      <header><div><span><Download aria-hidden="true" /> Workspace export</span><h2 id="export-title">Export diagrams</h2><p>Choose a format and how much of this workspace to include.</p></div><Button variant="ghost" size="icon" aria-label="Close export" onClick={onClose}><X aria-hidden="true" /></Button></header>
+      <header><div><span><Download aria-hidden="true" /> Workspace export</span><h2 id="export-title">Export diagrams</h2><p>Choose a format and how much of this workspace to include.</p></div><Button variant="ghost" size="icon" aria-label="Close export" disabled={exporting} onClick={requestClose}><X aria-hidden="true" /></Button></header>
       <div className="workspace-export-options">
         <fieldset disabled={exporting}><legend>Format</legend><div className="export-choice-grid export-choice-grid--format">{(["json", "png", "svg"] as const).map((value) => <label key={value} className={format === value ? "is-selected" : ""}><input type="radio" name="format" value={value} checked={format === value} onChange={() => changeFormat(value)} /><span>{value.toUpperCase()}</span></label>)}</div></fieldset>
-        <fieldset disabled={exporting}><legend>Scope <small>{workspaceCopy}</small></legend><div className="export-choice-grid">{scopes.map(([value, label]) => {
+        <fieldset disabled={exporting}><legend>Scope</legend><small>{workspaceCopy}</small><div className="export-choice-grid">{scopes.map(([value, label]) => {
           const disabled = value === "selected" && activeProcessId === null;
           return <label key={value} className={scope === value ? "is-selected" : ""}><input type="radio" name="scope" value={value} checked={scope === value} disabled={disabled} aria-describedby={disabled ? "selected-export-help" : undefined} onChange={() => setScope(value)} /><span>{label}</span></label>;
         })}</div></fieldset>
@@ -193,7 +198,7 @@ export function ExportDialog({
           {progress && <span>{progress}</span>}
           {exporting && progressMax > 0 && <progress max={progressMax} value={progressValue} />}
         </div>
-        <div className="export-dialog__actions"><Button variant="outline" onClick={onClose}>Cancel</Button><Button disabled={exporting || selectedUnavailable} aria-busy={exporting} onClick={() => void run()}><Download aria-hidden="true" /> {exporting ? "Preparing…" : actionLabel}</Button></div>
+        <div className="export-dialog__actions"><Button variant="outline" disabled={exporting} onClick={requestClose}>Cancel</Button><Button disabled={exporting || selectedUnavailable} aria-busy={exporting} onClick={() => void run()}><Download aria-hidden="true" /> {exporting ? "Preparing…" : actionLabel}</Button></div>
       </div>
     </section>
   </div>, window.document.body);
