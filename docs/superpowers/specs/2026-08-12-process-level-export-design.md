@@ -139,6 +139,8 @@ Direct selected/project exports reuse the same document and naming helpers witho
 - Unit-test selected, project, diagram-wise workspace, and project-wise workspace JSON contents through `parseDiagram`.
 - Component-test format-specific scope labels, default JSON organization, active-process selection, helper copy, progress, failure handling, and PNG preference persistence.
 - Browser-test direct selected export, current-project separate ZIP, all-project folder ZIP, and both JSON organizations.
+- Server-test that single-process and complete-project v4 JSON documents remain accepted, normalized, revisioned, and restored through the unchanged project APIs.
+- Security-test archive paths against `..`, slash, backslash, control-character, duplicate-name, and empty-name inputs so ZIP entries cannot escape their generated project folder.
 - Verify typecheck, frontend/server tests, production build, Edge/WebKit/mobile flows, and accessibility.
 
 ## Skill Workflow
@@ -148,10 +150,22 @@ Direct selected/project exports reuse the same document and naming helpers witho
 - `superpowers:test-driven-development`: add each manifest, slicing, dialog, and archive behavior as a failing test before production changes.
 - `superpowers:systematic-debugging`: investigate any unexpected export, archive, import, or browser-test failure before changing code.
 - `senior-frontend`: implement the TypeScript export orchestration and React dialog state.
+- `backend-development`: verify one-process and complete-project JSON compatibility through the existing project and revision APIs, adding compatibility tests without introducing endpoints or persistence changes.
+- `backend-security-coder`: review archive-entry sanitization, validation boundaries, traversal resistance, safe failure messages, and no-partial-archive behavior.
 - `web-accessibility`: verify scope controls, conditional Organization disclosure, announcements, errors, keyboard operation, and mobile reflow.
 - `superpowers:requesting-code-review`: review behavior against this specification before cleanup.
 - `superpowers:verification-before-completion`: require fresh full verification evidence before completion claims.
-- `specs-code-cleanup`: run hygiene cleanup only after review approval.
+- `specs-code-cleanup`: after review approval, clean every touched TS, TSX, MJS, and test file; remove obsolete combined-export code, dead imports, debug artifacts, and duplication without changing behavior, then rerun verification.
+
+## Final Cleanup Gate
+
+- Do not begin cleanup until the implementation review is approved.
+- Apply `specs-code-cleanup` to all files touched by this update.
+- Remove the obsolete combined-image and workspace-envelope paths only after tests prove they have no remaining callers.
+- Normalize imports and names, remove debug output and stale comments, and consolidate duplicated export naming or rendering branches.
+- Do not change public behavior, document schemas, API contracts, or brand surfaces during cleanup.
+- Rerun typecheck, frontend tests, server tests, production build, browser export coverage, and accessibility checks after cleanup.
+- Record review, cleanup, and final verification evidence in the implementation task artifact.
 
 ## Out of Scope
 
