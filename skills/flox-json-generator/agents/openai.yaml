@@ -1,0 +1,4 @@
+interface:
+  display_name: "FLOX JSON Generator"
+  short_description: "Generate validated FLOX-native JSON diagram batches"
+  default_prompt: "Use $flox-json-generator to convert my guidelines and source data into a validated FLOX-native JSON folder batch."
