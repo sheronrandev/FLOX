@@ -405,6 +405,26 @@ svg { flex: 0 0 auto; }
 .process-lane-row__name small { display: block; margin-top: 3px; color: var(--muted); font-weight: 400; }
 .process-lane-row__actions { display: flex; gap: 3px; }
 .process-lane-row .lane-editor-disclosure { grid-column: 1 / -1; }
+.process-manager-backdrop { position: fixed; inset: 0; z-index: 110; display: grid; place-items: center; padding: 20px; background: var(--backdrop); backdrop-filter: blur(3px); }
+.process-manager-dialog { display: grid; width: min(1320px,calc(100vw - 40px)); height: min(820px,calc(100vh - 40px)); grid-template-rows: auto minmax(0,1fr); overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-dialog); }
+.process-manager-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line-soft); }
+.process-manager-dialog > header h2, .process-manager-dialog > header p { margin: 0; }
+.process-manager-dialog > header p { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.process-manager-dialog__header-actions { display: flex; align-items: center; gap: 7px; }
+.process-manager-dialog__body { display: grid; min-height: 0; grid-template-columns: minmax(0,64fr) minmax(320px,36fr); }
+.process-manager-dialog__browse { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto auto minmax(0,1fr); border-right: 1px solid var(--border); }
+.process-manager-toolbar { display: grid; grid-template-columns: minmax(200px,1fr) minmax(205px,auto); align-items: end; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+.process-manager-field { display: grid; gap: 6px; color: var(--muted); font: 700 8px/12px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.process-manager-field__control { display: flex; min-height: 44px; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: var(--foreground); }
+.process-manager-field__control:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb,var(--ring) 16%,transparent); }
+.process-manager-field__control input, .process-manager-field__control select { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: inherit; font-size: 11px; }
+.process-manager-field__control button { display: grid; width: 28px; height: 28px; place-items: center; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--muted); }
+.process-manager-field__control kbd { padding: 2px 5px; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); font: 600 8px/12px var(--mono); white-space: nowrap; }
+.process-manager-add-form { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); }
+.process-manager-dialog__grid-scroll { min-height: 0; overflow: auto; padding: 14px; }
+.process-manager-filter-note { margin: 0 0 10px; color: var(--muted); font-size: 9px; }
+.process-manager-empty { display: grid; place-content: center; gap: 5px; min-height: 120px; padding: 20px; color: var(--muted); text-align: center; }
+.process-manager-mobile-back { position: absolute; right: 12px; bottom: 12px; }
 .process-entry { position: relative; margin-top: 9px; border: 1px solid var(--line-soft); border-radius: var(--flox-radius-control); background: var(--surface); box-shadow: 0 1px 0 color-mix(in srgb,var(--foreground) 4%,transparent); overflow: visible; }
 .process-entry.is-active { border-color: color-mix(in srgb,var(--primary) 72%,var(--border)); background: color-mix(in srgb,var(--surface) 93%,var(--active-bg)); box-shadow: inset 3px 0 var(--primary),0 0 0 1px color-mix(in srgb,var(--primary) 10%,transparent); }
 .process-row { display: grid; min-width: 0; min-height: 60px; grid-template-columns: minmax(0,1fr) 82px 44px; align-items: center; gap: 4px; padding: 7px 7px 4px 10px; }
