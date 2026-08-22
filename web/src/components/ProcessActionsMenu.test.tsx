@@ -14,6 +14,7 @@ describe("process actions menu", () => {
       <ProcessActionsMenu
         processName="Claims approval"
         canMoveSelection={false}
+        onEdit={() => undefined}
         onMoveSelection={onMoveSelection}
         onDelete={onDelete}
       />,
@@ -34,28 +35,31 @@ describe("process actions menu", () => {
   });
 
   it("moves focus with arrow keys and invokes the selected action once", async () => {
+    const onEdit = vi.fn();
     const onMoveSelection = vi.fn();
     render(
       <ProcessActionsMenu
         processName="Claims approval"
         canMoveSelection
+        onEdit={onEdit}
         onMoveSelection={onMoveSelection}
         onDelete={() => undefined}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More actions for Claims approval" }));
+    const settings = screen.getByRole("menuitem", { name: "Process settings" });
     const move = screen.getByRole("menuitem", { name: "Move selection to this process" });
-    const remove = screen.getByRole("menuitem", { name: "Delete process" });
-    await waitFor(() => expect(move).toHaveFocus());
+    await waitFor(() => expect(settings).toHaveFocus());
 
     fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowDown" });
-    expect(remove).toHaveFocus();
-    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowUp" });
     expect(move).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowUp" });
+    expect(settings).toHaveFocus();
 
-    fireEvent.click(move);
-    expect(onMoveSelection).toHaveBeenCalledOnce();
+    fireEvent.click(settings);
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(onMoveSelection).not.toHaveBeenCalled();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "More actions for Claims approval" })).toHaveFocus());
   });
@@ -66,6 +70,7 @@ describe("process actions menu", () => {
       <ProcessActionsMenu
         processName="Claims approval"
         canMoveSelection
+        onEdit={() => undefined}
         onMoveSelection={() => undefined}
         onDelete={onDelete}
       />
@@ -75,9 +80,9 @@ describe("process actions menu", () => {
     const trigger = screen.getByRole("button", { name: "More actions for Claims approval" });
     const outside = screen.getByRole("button", { name: "Outside control" });
     fireEvent.click(trigger);
-    const move = screen.getByRole("menuitem", { name: "Move selection to this process" });
-    await waitFor(() => expect(move).toHaveFocus());
-    fireEvent.blur(move, { relatedTarget: outside });
+    const settings = screen.getByRole("menuitem", { name: "Process settings" });
+    await waitFor(() => expect(settings).toHaveFocus());
+    fireEvent.blur(settings, { relatedTarget: outside });
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
@@ -92,6 +97,7 @@ describe("process actions menu", () => {
       <ProcessActionsMenu
         processName="Claims approval"
         canMoveSelection
+        onEdit={() => undefined}
         onMoveSelection={() => undefined}
         onDelete={() => undefined}
       />,

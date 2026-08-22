@@ -1,15 +1,16 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent } from "react";
-import { Ellipsis, MoveRight, Trash2 } from "lucide-react";
+import { Ellipsis, MoveRight, Settings2, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 
 export interface ProcessActionsMenuProps {
   processName: string;
   canMoveSelection: boolean;
+  onEdit: () => void;
   onMoveSelection: () => void;
   onDelete: () => void;
 }
 
-export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelection, onDelete }: ProcessActionsMenuProps) {
+export function ProcessActionsMenu({ processName, canMoveSelection, onEdit, onMoveSelection, onDelete }: ProcessActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<CSSProperties>({});
   const menuId = useId();
@@ -111,6 +112,18 @@ export function ProcessActionsMenu({ processName, canMoveSelection, onMoveSelect
       </Button>
       {open && (
         <div id={menuId} ref={menuRef} className="process-actions-menu__content" role="menu" style={menuPosition} onKeyDown={moveMenuFocus}>
+          <Button
+            variant="ghost"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => {
+              closeAndRestoreFocus();
+              onEdit();
+            }}
+          >
+            <Settings2 aria-hidden="true" />
+            Process settings
+          </Button>
           <Button
             variant="ghost"
             role="menuitem"

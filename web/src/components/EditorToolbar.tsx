@@ -256,6 +256,7 @@ export function EditorToolbar({ collapsed, onCollapsedChange, theme, onThemeChan
               <ProcessActionsMenu
                 processName={process.name}
                 canMoveSelection={canMoveSelectionTo(process.id)}
+                onEdit={() => openProcessEditor(process.id)}
                 onMoveSelection={() => moveSelectionTo(process.id, process.name)}
                 onDelete={() => {
                   if (!confirmStructuralDrafts()) return;
