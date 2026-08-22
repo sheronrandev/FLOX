@@ -27,7 +27,7 @@ Replace them with one compact launcher containing:
 
 The active-process summary is informational and must not truncate the name into an unintelligible identifier. When there is no active process, it displays a clear fallback such as `No active process`.
 
-The sidebar does not expose swimlane-management controls. Those controls exist only inside the Processes window. Existing palette commands continue to target the active process according to current store behavior.
+The sidebar does not expose swimlane-management controls. Those controls, including Add swimlane, exist only inside the Processes window. Existing UML node palette commands continue to target the active process according to current store behavior.
 
 ## Processes Window
 
