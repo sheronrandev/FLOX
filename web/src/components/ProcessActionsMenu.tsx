@@ -72,6 +72,7 @@ export function ProcessActionsMenu({ processName, canMoveSelection, onEdit, onMo
   function moveMenuFocus(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       closeAndRestoreFocus();
       return;
     }

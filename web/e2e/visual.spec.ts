@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { addSwimlaneToActiveProcess, importProcessManagerFixture, openProcessManager } from "./process-manager-fixture";
 
 test("dashboard visual baseline", async ({ page }) => {
   test.skip(test.info().project.name !== "edge", "Visual baselines use the stable Edge renderer");
@@ -11,7 +12,7 @@ test("complete UML node catalog visual baselines", async ({ page }) => {
   test.skip(test.info().project.name !== "edge", "Visual baselines use the stable Edge renderer");
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   const notations = ["Activity", "State", "Object in State", "Decision", "Merge", "Fork", "Join", "Initial State", "Final State", "Constraint", "Note"];
   for (const name of notations) await page.getByTitle(`Add ${name}`).click();
   await page.getByTitle("Auto arrange diagram").click();
@@ -20,6 +21,7 @@ test("complete UML node catalog visual baselines", async ({ page }) => {
   await expect(page.locator(".react-flow")).toHaveScreenshot("node-catalog-light.png");
 
   await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("button", { name: "Appearance" }).click();
   await page.getByRole("radio", { name: /Dark/ }).click();
   await page.getByRole("button", { name: "Close settings" }).click();
   await expect(page.locator(".react-flow")).toHaveScreenshot("node-catalog-dark.png");
@@ -40,42 +42,26 @@ test("export preview modal", async ({ page }) => {
   test.skip(test.info().project.name !== "edge", "Visual baselines use the stable Edge renderer");
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Activity").click();
   await page.getByTitle("Add Decision").click();
-  await page.getByTitle("Export image").click();
+  await page.getByRole("button", { name: "Export" }).click();
   await expect(page.getByRole("dialog", { name: "Export diagrams" })).toHaveScreenshot("export-modal.png");
 });
 
 test("process and swimlane manager hierarchy", async ({ page }) => {
   test.skip(test.info().project.name !== "edge", "Visual baselines use the stable Edge renderer");
-  await page.setViewportSize({ width: 1280, height: 1400 });
-  await page.goto("/projects");
-  await page.getByRole("button", { name: "New diagram" }).click();
-
-  for (const [index, name] of ["User", "Manager", "Officer"].entries()) {
-    await page.getByRole("region", { name: "Untitled diagram" }).getByRole("button", { name: "Add lane" }).click();
-    await page.getByRole("button", { name: `Lane settings for Lane ${index + 1}` }).click();
-    const form = page.locator(".lane-properties-form");
-    await form.getByLabel("Label").fill(name);
-    await form.getByRole("button", { name: "Save" }).click();
-    await page.getByRole("button", { name: `Lane settings for ${name}` }).click();
-  }
-
-  await page.getByRole("button", { name: "Add process" }).click();
-  await page.getByLabel("Process name").fill("Fulfillment");
-  await page.locator(".process-editor-disclosure").getByRole("button", { name: "Save" }).click();
-  await page.getByRole("region", { name: "Fulfillment" }).getByRole("button", { name: "Add lane" }).click();
-  await page.getByRole("button", { name: "Lane settings for Lane 1" }).click();
-  await page.locator(".lane-properties-form").getByLabel("Label").fill("Operations");
-  await page.locator(".lane-properties-form").getByRole("button", { name: "Save" }).click();
-  await page.getByRole("button", { name: "Lane settings for Operations" }).click();
-
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await importProcessManagerFixture(page);
   await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("button", { name: "Appearance" }).click();
   await page.getByRole("radio", { name: /Dark/ }).click();
   await page.getByRole("button", { name: "Close settings" }).click();
-  await page.getByRole("button", { name: "Fulfillment", exact: true }).click();
-  await page.addStyleTag({ content: ".sidebar-heading,.node-palette,.appearance-manager,.sidebar-spacer,.sidebar-actions,.sidebar-status{display:none!important}.editor-sidebar{overflow:visible!important}" });
-  await page.locator(".lane-manager").scrollIntoViewIfNeeded();
-  await expect(page.locator(".editor-sidebar")).toHaveScreenshot("process-swimlane-manager-dark.png");
+  const dialog = await openProcessManager(page);
+  await expect(dialog).toHaveScreenshot("process-manager-dark.png");
+
+  await page.setViewportSize({ width: 430, height: 820 });
+  await dialog.getByLabel("Find a process").fill("Process 002");
+  await dialog.getByRole("button", { name: "Select Process 002" }).click();
+  await expect(dialog).toHaveScreenshot("process-manager-mobile-lanes.png");
 });

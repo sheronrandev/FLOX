@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="FLOX is a local-first UML activity diagram workspace." />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#087f73" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("activity-studio-theme-preference") || localStorage.getItem("activity-studio-theme") || "light";
+          const mode = saved === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : saved === "dark" ? "dark" : "light";
+          document.documentElement.dataset.theme = mode;
+          document.documentElement.classList.toggle("dark", mode === "dark");
+          document.documentElement.style.colorScheme = mode;
+        } catch { /* Use the light default when storage is unavailable. */ }
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg?v=6" />
+    <title>FLOX · Map the work</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

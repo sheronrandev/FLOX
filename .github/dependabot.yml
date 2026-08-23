@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: monthly
+    groups:
+      web-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/server"
+    schedule:
+      interval: monthly
+    groups:
+      server-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

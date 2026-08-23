@@ -25,6 +25,101 @@ describe("diagram image export", () => {
     expect(transparent).not.toContain(`fill="${document.appearance.canvasColor}"`);
   });
 
+  it("reports incomplete imported geometry with an actionable export error", async () => {
+    const document = createDiagram("Incomplete import");
+    document.processes[0].nodes.push({ id: "broken", type: "activity", position: undefined as never, label: "Broken", laneId: null });
+
+    await expect(exportDiagramImage(document, "png", { defaultFormat: "png", transparentBackground: false, imageScale: 1 }))
+      .rejects.toThrow("incomplete node or process position");
+  });
+
+  it("exports the project font size for process, actor, guard, and node text", () => {
+    const document = createDiagram("Typography export");
+    document.appearance.nodeFontSize = 16;
+    const process = document.processes[0];
+    process.name = "Custom process";
+    process.lanes = [{ id: "lane", name: "Reviewer", width: 280, colorIndex: 0 }];
+    process.nodes = [
+      { id: "source", type: "activity", position: { x: 80, y: 100 }, label: "Review", laneId: "lane" },
+      { id: "target", type: "activity", position: { x: 80, y: 260 }, label: "Approve", laneId: "lane" },
+    ];
+    process.edges = [{ id: "flow", type: "control-flow", sourceNodeId: "source", sourceAnchorId: "bottom", targetNodeId: "target", targetAnchorId: "top", guardLabel: "accepted", routing: "automatic" }];
+
+    const svg = diagramToSvg(document, false);
+
+    for (const value of ["Custom process", "Reviewer", "Review", "accepted"]) {
+      expect(svg).toMatch(new RegExp(`font-size="16"[^>]*>[^<]*(?:<tspan[^>]*>)?${value}`));
+    }
+  });
+
+  it("automatically exports misplaced lane nodes below the actor name", () => {
+    const document = createDiagram("Export");
+    const process = document.processes[0];
+    process.lanes = [{ id: "lane", name: "Accounts Officer", width: 280, colorIndex: 0 }];
+    process.nodes = [{ id: "activity", type: "activity", position: { x: 80, y: 0 }, label: "Review request", laneId: "lane" }];
+
+    const svg = diagramToSvg(document, false);
+
+    expect(svg).toContain('<rect x="80" y="86"');
+  });
+
+  it("separates overlapping nodes and halos the complete exported flow", () => {
+    const document = createDiagram("Export");
+    const process = document.processes[0];
+    process.nodes = [
+      { id: "start", type: "initial", position: { x: 100, y: 0 }, label: "", laneId: null },
+      { id: "activity", type: "activity", position: { x: 80, y: 0 }, label: "Receive trigger", laneId: null },
+    ];
+    process.edges = [{ id: "flow", type: "control-flow", sourceNodeId: "start", sourceAnchorId: "bottom", targetNodeId: "activity", targetAnchorId: "top", guardLabel: "", routing: "automatic" }];
+
+    const svg = diagramToSvg(document, false);
+
+    expect(svg).toContain('<rect x="80" y="74"');
+    expect(svg).toContain('class="edge-halo"');
+    expect(svg).toContain('stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"');
+    expect(svg).toContain('markerUnits="userSpaceOnUse"');
+  });
+
+  it("wraps long activity text in SVG output", () => {
+    const document = createDiagram("Export");
+    document.processes[0].nodes.push({ id: "activity", type: "activity", position: { x: 80, y: 90 }, label: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do", laneId: null });
+    const svg = diagramToSvg(document, false);
+    expect(svg.match(/<tspan/g)?.length).toBeGreaterThan(1);
+    expect(svg).toContain("Lorem ipsum dolor sit");
+    expect(svg).toContain('width="240"');
+  });
+
+  it("keeps a long process title on one line when the pool has room", () => {
+    const document = createDiagram("Export");
+    const process = document.processes[0];
+    process.name = "FIN1-P01-D01 — Normal Processing - Purchase Requisition";
+    process.lanes = [
+      { id: "lane-1", name: "Lane 1", width: 280, colorIndex: 0 },
+      { id: "lane-2", name: "Lane 2", width: 280, colorIndex: 1 },
+      { id: "lane-3", name: "Lane 3", width: 280, colorIndex: 2 },
+    ];
+
+    const svg = diagramToSvg(document, false);
+    const escapedTitle = "FIN1-P01-D01 — Normal Processing - Purchase Requisition";
+    expect(svg).toContain(`>${escapedTitle}</text>`);
+    expect(svg).toMatch(/fill="#000000"[^>]*font-size="12"[^>]*font-weight="700"[^>]*>FIN1-P01-D01/);
+    expect(svg).not.toContain(`<tspan x="${40 + (280 * 3) / 2}"`);
+    expect(svg).toContain('class="swimlane-title-row" x="40" y="-10" width="840" height="40"');
+  });
+
+  it("wraps an oversized process title in a narrow pool", () => {
+    const document = createDiagram("Export");
+    const process = document.processes[0];
+    process.name = "A very long business process title that cannot fit in one lane";
+    process.lanes = [{ id: "lane-1", name: "Lane 1", width: 280, colorIndex: 0 }];
+
+    const svg = diagramToSvg(document, false);
+    expect(svg).toContain("A very long business process");
+    expect(svg).toContain("that cannot fit in one lane");
+    expect(svg.match(/<tspan/g)?.length).toBeGreaterThan(1);
+    expect(svg).toContain('class="swimlane-title-row" x="40" y="-10" width="280" height="40"');
+  });
+
   it("rejects direct image exports that contain more than one process", async () => {
     const document = createDiagram("Export");
     document.processes.push({
@@ -57,6 +152,51 @@ describe("diagram image export", () => {
     expect(svg).toContain('class="swimlane-separator"');
     expect(svg).toContain('stroke-dasharray="4 4"');
     expect(svg).not.toContain('class="swimlane-heading-rule"');
+  });
+
+  it("exports unspecified swimlane fills as white and preserves explicit colors", () => {
+    const document = createDiagram("Lane colors");
+    document.processes[0].lanes = [
+      { id: "lane-default", name: "Default", width: 280, colorIndex: 0 },
+      { id: "lane-custom", name: "Custom", width: 280, colorIndex: 1, style: { fill: "#ddeeff" } },
+    ];
+
+    const svg = diagramToSvg(document, false);
+
+    expect(svg).toContain('width="280" height="760" fill="#ffffff"');
+    expect(svg).toContain('width="280" height="760" fill="#ddeeff"');
+  });
+
+  it("exports unspecified nodes in black and white and preserves explicit node colors", () => {
+    const document = createDiagram("Node colors");
+    document.processes[0].nodes = [
+      { id: "default", type: "activity", position: { x: 80, y: 90 }, label: "Default", laneId: null },
+      { id: "initial", type: "initial", position: { x: 320, y: 90 }, label: "", laneId: null },
+      { id: "custom", type: "activity", position: { x: 420, y: 90 }, label: "Custom", laneId: null, style: { fill: "#ddeeff", stroke: "#334455", textColor: "#112233" } },
+    ];
+
+    const svg = diagramToSvg(document, false);
+
+    expect(svg).toMatch(/<rect[^>]*fill="#ffffff" stroke="#000000"/);
+    expect(svg).toMatch(/<circle[^>]*fill="#000000" stroke="#000000"/);
+    expect(svg).toMatch(/<rect[^>]*fill="#ddeeff" stroke="#334455"/);
+    expect(svg).toContain('fill="#112233"');
+  });
+
+  it("exports default flows, arrowheads, and guard labels in black", () => {
+    const document = createDiagram("Flow colors");
+    const process = document.processes[0];
+    process.nodes = [
+      { id: "source", type: "activity", position: { x: 80, y: 90 }, label: "Source", laneId: null },
+      { id: "target", type: "activity", position: { x: 320, y: 90 }, label: "Target", laneId: null },
+    ];
+    process.edges = [{ id: "flow", type: "object-flow", sourceNodeId: "source", sourceAnchorId: "right", targetNodeId: "target", targetAnchorId: "left", guardLabel: "approved", routing: "automatic" }];
+
+    const svg = diagramToSvg(document, false);
+
+    expect(svg).toMatch(/<marker[^>]*><path[^>]*fill="#000000"/);
+    expect(svg).toMatch(/<polyline[^>]*stroke="#000000"[^>]*stroke-dasharray="7 5"/);
+    expect(svg).toMatch(/<text[^>]*fill="#000000"[^>]*>approved<\/text>/);
   });
 
   it("downloads a supplied process-order SVG filename", async () => {

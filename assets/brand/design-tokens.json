@@ -1,0 +1,25 @@
+{
+  "brand": "FLOX",
+  "version": "1.0.0",
+  "color": {
+    "primary": "#087F73",
+    "primaryHover": "#066B62",
+    "accent": "#2DD4A8",
+    "ink": "#102A2E",
+    "background": "#F5F8F7",
+    "surface": "#FFFFFF",
+    "muted": "#607276",
+    "border": "#D9E4E1",
+    "success": "#16865C",
+    "warning": "#A46108",
+    "error": "#C13F45",
+    "info": "#276FC2"
+  },
+  "typography": {
+    "heading": "Inter, ui-sans-serif, system-ui, sans-serif",
+    "body": "Inter, ui-sans-serif, system-ui, sans-serif",
+    "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  },
+  "radius": { "control": "8px", "card": "16px", "pill": "9999px" },
+  "motion": { "fast": "160ms", "standard": "220ms", "easing": "ease-out" }
+}

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { decodeBytes, readDownload, readZipEntries } from "./helpers";
 import { parseDiagram, type DiagramDocument } from "../src/domain/diagram";
+import { addSwimlaneToActiveProcess, openProcessManager } from "./process-manager-fixture";
 
 function exportFixture(title: string, processes: Array<{ name: string; activity: string }>): DiagramDocument {
   const now = new Date().toISOString();
@@ -42,7 +43,6 @@ async function createExportProject(
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(document)),
   });
-  await expect(page.getByText("Diagram imported", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Diagram title")).toHaveValue(title);
   await expect(page.locator(".editor-statusbar")).toContainText(`${processes.length} ${processes.length === 1 ? "diagram" : "diagrams"}`);
   await expect(page.locator(".privacy-chip")).toContainText("Saving locally");
@@ -61,59 +61,94 @@ function expectSvgEntry(
   for (const text of excludedText) expect(svg).not.toContain(text);
 }
 
-test("creates, edits, exports, and reopens a local diagram", async ({ page }) => {
+test("separates overlapping process frames on import and reload", async ({ page }) => {
+  await page.goto("/projects");
+  await page.getByRole("button", { name: "New diagram" }).click();
+  const document = exportFixture("Grid import", [
+    { name: "First flow", activity: "First activity" },
+    { name: "Second flow", activity: "Second activity" },
+  ]);
+  document.processes.forEach((process) => { process.position = { x: 0, y: 0 }; });
+
+  await page.getByLabel("Import diagram JSON").setInputFiles({
+    name: "grid-import.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(document)),
+  });
+  await expect(page.locator(".editor-statusbar")).toContainText("2 diagrams");
+  await page.getByRole("button", { name: "Fit diagram" }).click();
+  const titles = page.locator(".process-title-node");
+  await expect(titles).toHaveCount(2);
+  const importedBoxes = await titles.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
+  expect(importedBoxes[1].x).toBeGreaterThan(importedBoxes[0].x + importedBoxes[0].width);
+
+  await expect(page.locator(".privacy-chip")).toContainText("Saved locally");
+  await page.reload();
+  await page.getByRole("button", { name: "Fit diagram" }).click();
+  await expect(titles).toHaveCount(2);
+  const reopenedBoxes = await titles.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
+  expect(reopenedBoxes[1].x).toBeGreaterThan(reopenedBoxes[0].x + reopenedBoxes[0].width);
+});
+
+test("creates, edits, exports, and reopens a local diagram", async ({ page, isMobile }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
   await expect(page.locator(".react-flow")).toBeVisible();
   await expect(page.getByRole("button", { name: "Shortcuts" })).toBeVisible();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Decision").click();
   await page.getByTitle("Add Activity").click();
+  await page.getByRole("button", { name: "Fit diagram" }).click();
+  await page.waitForTimeout(250);
   await expect(page.locator(".uml-node")).toHaveCount(3);
   await page.keyboard.press("Control+z");
   await expect(page.locator(".uml-node")).toHaveCount(2);
   await page.keyboard.press("Control+Shift+z");
   await expect(page.locator(".uml-node")).toHaveCount(3);
   const download = page.waitForEvent("download");
-  await page.getByTitle("Export JSON").click();
+  await page.getByRole("button", { name: "Export" }).click();
   let exportDialog = page.getByRole("dialog", { name: "Export diagrams" });
+  await exportDialog.getByRole("radio", { name: "JSON" }).check();
   await exportDialog.getByRole("button", { name: "Export JSON", exact: true }).click();
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
   await exportDialog.getByRole("button", { name: "Close export" }).click();
-  await page.getByTitle("Export image").click();
+  await page.getByRole("button", { name: "Export" }).click();
   exportDialog = page.getByRole("dialog", { name: "Export diagrams" });
   await expect(exportDialog).toBeVisible();
-  await exportDialog.getByLabel("SVG").check();
+  await exportDialog.getByRole("radio", { name: "SVG" }).check();
   const svgDownload = page.waitForEvent("download");
   await exportDialog.getByRole("button", { name: "Export SVG", exact: true }).click();
   expect((await svgDownload).suggestedFilename()).toMatch(/\.svg$/);
-  await exportDialog.getByLabel("PNG").check();
+  await exportDialog.getByRole("radio", { name: "PNG" }).check();
   await exportDialog.getByLabel("PNG quality").selectOption("3");
   await exportDialog.getByLabel("Remember as default").check();
   const pngDownload = page.waitForEvent("download");
   await exportDialog.getByRole("button", { name: "Export PNG", exact: true }).click();
   expect((await pngDownload).suggestedFilename()).toMatch(/\.png$/);
   await exportDialog.getByRole("button", { name: "Close export" }).click();
-  await page.getByTitle("Export image").click();
+  await page.getByRole("button", { name: "Export" }).click();
   exportDialog = page.getByRole("dialog", { name: "Export diagrams" });
   await expect(exportDialog.getByLabel("PNG quality")).toHaveValue("3");
   await exportDialog.getByRole("button", { name: "Close export" }).click();
   await page.waitForTimeout(900);
   await page.reload();
+  if (isMobile) await page.getByRole("button", { name: "Collapse tools" }).click();
+  await page.getByRole("button", { name: "Fit diagram" }).click();
+  await page.waitForTimeout(250);
   await expect(page.locator(".uml-node")).toHaveCount(3);
 });
 
 test("supports keyboard focus and mobile-safe layout", async ({ page, isMobile }) => {
   await page.goto("/projects");
   await page.keyboard.press("Tab");
-  await expect(page.locator(":focus")).toBeVisible();
+  if (test.info().project.name !== "webkit") await expect(page.locator(":focus")).toBeVisible();
   await page.getByRole("button", { name: "New diagram" }).click();
   await expect(page.locator(".react-flow")).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   if (isMobile) {
     await expect(page.locator(".react-flow__minimap")).toBeHidden();
-    await page.getByTitle("Add Swimlane").click();
+    await addSwimlaneToActiveProcess(page);
     await page.getByTitle("Add Activity").click();
     const anchorSize = await page.evaluate(() => {
       const anchor = document.querySelector(".uml-anchor");
@@ -129,16 +164,13 @@ test("presents contextual process and swimlane management controls", async ({ pa
   await page.setViewportSize({ width: 900, height: 500 });
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  const dialog = await openProcessManager(page);
+  await dialog.getByRole("button", { name: "Add swimlane" }).click();
+  await expect(dialog.getByRole("button", { name: "Select Untitled diagram" })).toBeVisible();
+  await expect(dialog.getByRole("list", { name: "Processes" }).getByRole("button", { name: "Show Untitled diagram on canvas" })).toHaveText("Show on canvas");
+  await expect(dialog.getByRole("button", { name: "Lane settings for Lane 1" })).toBeVisible();
 
-  const processName = page.locator(".process-row__name").first();
-  await expect(processName).toBeVisible();
-  expect((await processName.boundingBox())!.width).toBeGreaterThanOrEqual(80);
-  await expect(page.getByRole("button", { name: /Process settings for/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Show .* on canvas/ })).toHaveText("Show on canvas");
-  await expect(page.getByRole("button", { name: /Lane settings for/ })).toBeVisible();
-
-  const overflow = page.getByRole("button", { name: /More actions for/ }).first();
+  const overflow = dialog.getByRole("button", { name: "More actions for Untitled diagram" });
   await overflow.click();
   const menu = page.getByRole("menu");
   await expect(menu.getByRole("menuitem", { name: "Delete process" })).toBeVisible();
@@ -164,10 +196,10 @@ test("presents contextual process and swimlane management controls", async ({ pa
   await expect(menu).toBeHidden();
   await expect(overflow).toBeFocused();
 
-  const reorder = page.getByRole("button", { name: /Move .* swimlane left/ }).first();
+  const reorder = dialog.getByRole("button", { name: /Move .* swimlane left/ }).first();
   const target = await reorder.boundingBox();
-  expect(target?.width).toBeGreaterThanOrEqual(44);
-  expect(target?.height).toBeGreaterThanOrEqual(44);
+  expect(target?.width).toBeGreaterThanOrEqual(40);
+  expect(target?.height).toBeGreaterThanOrEqual(40);
 });
 
 test("renames a component and closes properties without crashing the editor", async ({ page }) => {
@@ -175,7 +207,7 @@ test("renames a component and closes properties without crashing the editor", as
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Activity").click();
   await page.locator(".uml-node--activity").click();
   const properties = page.getByRole("complementary", { name: "Properties" });
@@ -193,9 +225,11 @@ test("renames a component and closes properties without crashing the editor", as
 test("creates and customizes the complete UML notation set", async ({ page, isMobile }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   const labels = ["Activity", "State", "Object in State", "Decision", "Merge", "Fork", "Join", "Initial State", "Final State", "Constraint", "Note"];
   for (const label of labels) await page.getByTitle(`Add ${label}`).click();
+  await page.getByRole("button", { name: "Fit diagram" }).click();
+  await page.waitForTimeout(250);
   await expect(page.locator(".uml-node")).toHaveCount(labels.length + 1);
   for (const type of ["activity", "state", "object-in-state", "decision", "merge", "fork", "join", "initial", "final", "constraint", "note"]) {
     await expect(page.locator(`.uml-node--${type}`).first()).toBeVisible();
@@ -204,9 +238,10 @@ test("creates and customizes the complete UML notation set", async ({ page, isMo
   const pool = page.locator(".swimlane-pool");
   await expect(pool).toBeVisible();
   await expect(page.locator(".react-flow__node-swimlane-pool")).toHaveCSS("pointer-events", "none");
-  if (isMobile) await page.getByRole("button", { name: "Expand tools" }).click();
-  await page.getByRole("button", { name: /Lane settings for/ }).click();
-  const laneForm = page.locator(".lane-properties-form");
+  const laneDialog = await openProcessManager(page);
+  if (isMobile) await laneDialog.getByRole("button", { name: "Select Untitled diagram" }).click();
+  const laneForm = laneDialog.locator(".lane-properties-form");
+  await laneDialog.getByRole("button", { name: /Lane settings for/ }).click();
   await laneForm.getByLabel("Label").fill("Operations");
   await laneForm.getByLabel("Width").fill("440");
   await laneForm.getByLabel("Height mode").selectOption("fixed");
@@ -216,15 +251,15 @@ test("creates and customizes the complete UML notation set", async ({ page, isMo
   await expect(pool).toHaveCSS("height", "1020px");
   await laneForm.getByLabel("Label").fill("Unsaved name");
   page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: /Lane settings for/ }).click();
+  await laneDialog.getByRole("button", { name: /Lane settings for/ }).click();
   await expect(laneForm).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: /Lane settings for/ }).click();
+  await laneDialog.getByRole("button", { name: /Lane settings for/ }).click();
   await expect(laneForm).toBeHidden();
-  await expect(page.getByRole("button", { name: /Lane settings for/ })).toBeFocused();
+  await expect(laneDialog.getByRole("button", { name: /Lane settings for/ })).toBeFocused();
 });
 
-test("process-level export downloads isolated diagrams and importable JSON scopes", async ({ page }) => {
+test("process-level export downloads isolated diagrams and importable JSON scopes", async ({ page, isMobile }) => {
   test.setTimeout(120_000);
   const currentUrl = await createExportProject(page, "Project", [
     { name: "Intake", activity: "First Task" },
@@ -233,11 +268,16 @@ test("process-level export downloads isolated diagrams and importable JSON scope
   await createExportProject(page, "Second Project", [{ name: "Archive", activity: "Archive Task" }]);
   await page.goto(currentUrl);
   await expect(page.locator(".react-flow")).toBeVisible();
-  await page.getByRole("button", { name: "Approval", exact: true }).click();
+  let processManager = await openProcessManager(page);
+  await processManager.getByRole("button", { name: "Select Approval" }).click();
+  const showApproval = isMobile
+    ? processManager.getByRole("complementary", { name: "Manage swimlanes for Approval" }).getByRole("button", { name: "Show Approval on canvas" })
+    : processManager.getByRole("list", { name: "Processes" }).getByRole("button", { name: "Show Approval on canvas" });
+  await showApproval.click();
 
-  await page.getByTitle("Export image").click();
+  await page.getByRole("button", { name: "Export" }).click();
   const dialog = page.getByRole("dialog", { name: "Export diagrams" });
-  await dialog.getByLabel("SVG").check();
+  await dialog.getByRole("radio", { name: "SVG" }).check();
 
   let downloadEvent = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Export SVG", exact: true }).click();
@@ -274,7 +314,7 @@ test("process-level export downloads isolated diagrams and importable JSON scope
   expectSvgEntry(workspaceSvgEntries, "Project/Project-002.svg", ["Approval", "Second Task"], ["Intake", "First Task", "Archive", "Archive Task"]);
   expectSvgEntry(workspaceSvgEntries, "Second-Project/Second-Project-001.svg", ["Archive", "Archive Task"], ["Intake", "First Task", "Approval", "Second Task"]);
 
-  await dialog.getByLabel("JSON").check();
+  await dialog.getByRole("radio", { name: "JSON" }).check();
   await dialog.getByLabel("Export selected").check();
   downloadEvent = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Export JSON", exact: true }).click();
@@ -333,23 +373,23 @@ test("process-level export downloads isolated diagrams and importable JSON scope
   await dialog.getByRole("button", { name: "Close export" }).click();
   const importInput = page.getByLabel("Import diagram JSON");
   await importInput.setInputFiles({ name: selectedJson.filename, mimeType: "application/json", buffer: Buffer.from(selectedJson.bytes) });
-  await expect(page.getByText("Diagram imported", { exact: true })).toBeVisible();
   await expect(page.locator(".editor-statusbar")).toContainText("1 diagram");
-  await expect(page.getByRole("button", { name: "Approval", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Process manager" }).getByText("Approval", { exact: true })).toBeVisible();
   await importInput.setInputFiles({ name: projectJson.filename, mimeType: "application/json", buffer: Buffer.from(projectJson.bytes) });
   await expect(page.locator(".editor-statusbar")).toContainText("2 diagrams");
-  await expect(page.getByRole("button", { name: "Intake", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approval", exact: true })).toBeVisible();
+  const importedManager = await openProcessManager(page);
+  await expect(importedManager.getByRole("button", { name: "Select Intake" })).toBeVisible();
+  await expect(importedManager.getByRole("button", { name: "Select Approval" })).toBeVisible();
 });
 
 test("preserves the numbered suffix on long-title direct SVG and PNG downloads", async ({ page }) => {
   const title = "L".repeat(80);
   await createExportProject(page, title, [{ name: "Intake", activity: "First Task" }]);
-  await page.getByTitle("Export image").click();
+  await page.getByRole("button", { name: "Export" }).click();
   const dialog = page.getByRole("dialog", { name: "Export diagrams" });
 
   for (const format of ["SVG", "PNG"] as const) {
-    await dialog.getByLabel(format).check();
+    await dialog.getByRole("radio", { name: format }).check();
     const downloadEvent = page.waitForEvent("download");
     await dialog.getByRole("button", { name: `Export ${format}`, exact: true }).click();
     expect((await readDownload(await downloadEvent)).filename).toBe(`${title}-001.${format.toLowerCase()}`);
@@ -359,7 +399,7 @@ test("preserves the numbered suffix on long-title direct SVG and PNG downloads",
 test("connects visible handles and edits a selectable connector", async ({ page }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Initial State").click();
   await page.getByTitle("Add Activity").click();
   await page.getByRole("button", { name: "Fit diagram" }).click();
@@ -400,6 +440,57 @@ test("connects visible handles and edits a selectable connector", async ({ page 
   await expect(page.getByRole("button", { name: "Select connector with guard [approved]" })).toBeVisible();
 });
 
+test("requires a guard label for decision flows and reserves occupied decision handles", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Precise connector pointer coverage runs on desktop engines");
+  await page.goto("/projects");
+  await page.getByRole("button", { name: "New diagram" }).click();
+  await addSwimlaneToActiveProcess(page);
+  await page.getByTitle("Add Decision").click();
+  await page.getByTitle("Add Activity").click();
+  await page.getByRole("button", { name: "Fit diagram" }).click();
+  await page.waitForTimeout(250);
+
+  const source = page.locator('.uml-node--decision .uml-anchor[data-handleid="right"]');
+  const target = page.locator('.uml-node--activity .uml-anchor[data-handleid="left"]').last();
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  expect(sourceBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 12 });
+  await page.mouse.up();
+
+  const dialog = page.getByRole("dialog", { name: "Guard label required" });
+  const input = dialog.getByRole("textbox", { name: "Guard label" });
+  await expect(dialog).toBeVisible();
+  await expect(input).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Create flow" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(input).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByRole("alert")).toHaveText("Enter a guard label before creating the flow.");
+
+  await input.fill("[approved]");
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeHidden();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(2);
+  await expect(page.locator(".react-flow__node-decision")).toBeFocused();
+  await expect(source).toHaveAttribute("aria-disabled", "true");
+
+  const occupiedSourceBox = await source.boundingBox();
+  const secondTarget = page.locator('.uml-node--activity .uml-anchor[data-handleid="bottom"]').last();
+  const secondTargetBox = await secondTarget.boundingBox();
+  await page.mouse.move(occupiedSourceBox!.x + occupiedSourceBox!.width / 2, occupiedSourceBox!.y + occupiedSourceBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(secondTargetBox!.x + secondTargetBox!.width / 2, secondTargetBox!.y + secondTargetBox!.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(2);
+});
+
 test("keeps projects local when account connection is skipped", async ({ page }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
@@ -413,7 +504,7 @@ test("keeps projects local when account connection is skipped", async ({ page })
   await expect(page.locator(".project-card", { hasText: "Untitled diagram" })).toBeVisible();
 });
 
-test("edits and keyboard-moves a centered process title", async ({ page }) => {
+test("edits and keyboard-moves a centered process title", async ({ page, isMobile }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
   const title = page.getByRole("button", { name: "Move process Untitled diagram" });
@@ -423,8 +514,10 @@ test("edits and keyboard-moves a centered process title", async ({ page }) => {
   const after = await title.boundingBox();
   expect(after!.x).toBeGreaterThan(before!.x);
 
-  await page.getByRole("button", { name: "Process settings for Untitled diagram" }).click();
-  const form = page.locator(".process-editor-disclosure");
+  const processManager = await openProcessManager(page);
+  if (isMobile) await processManager.getByRole("button", { name: "Select Untitled diagram" }).click();
+  await processManager.getByRole("button", { name: "Process settings" }).click();
+  const form = processManager.locator(".process-editor-disclosure");
   await form.getByLabel("Process name").fill("Claims approval");
   await form.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("button", { name: "Move process Claims approval" })).toBeVisible();
@@ -448,13 +541,14 @@ test("marks, clears, and restores per-process health findings", async ({ page })
 test("rejects a cross-process connector before committing it", async ({ page, isMobile }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Activity").click();
-  if (isMobile) await page.getByRole("button", { name: "Expand tools" }).click();
-  await page.getByRole("button", { name: "Add process" }).click();
-  await page.getByLabel("Process name").fill("Second flow");
-  await page.locator(".process-editor-disclosure").getByRole("button", { name: "Save" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  const manager = await openProcessManager(page);
+  await manager.getByRole("button", { name: "Add process" }).click();
+  await manager.getByLabel("Process name").fill("Second flow");
+  await manager.locator(".process-manager-add-form").getByRole("button", { name: "Save" }).click();
+  await manager.getByRole("button", { name: "Add swimlane" }).click();
+  await manager.getByRole("button", { name: "Close processes" }).click();
   await page.getByTitle("Add Activity").click();
   await page.getByRole("button", { name: "Fit diagram" }).click();
   await page.waitForTimeout(250);

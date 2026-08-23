@@ -3,6 +3,7 @@ import { defaultLabels } from "./notation";
 
 export const DIAGRAM_FORMAT = "activity-diagram" as const;
 export const DIAGRAM_VERSION = 4 as const;
+export const MAX_DIAGRAM_LANES = 1_000 as const;
 
 export const nodeTypes = [
   "activity", "state", "object-in-state", "decision", "merge", "fork",
@@ -17,10 +18,18 @@ export type DiagramEdgeType = (typeof edgeTypes)[number];
 
 export interface DiagramNodeStyle { fill?: string; stroke?: string; textColor?: string }
 export interface DiagramEdgeStyle { stroke?: string; width?: number; dash?: "solid" | "dashed" | "dotted" }
-export interface DiagramAppearance { canvasColor: string; gridColor: string; controlFlowColor: string; objectFlowColor: string }
+export interface DiagramAppearance {
+  canvasColor: string;
+  gridColor: string;
+  controlFlowColor: string;
+  objectFlowColor: string;
+  nodeFontSize: number;
+  nodeInnerPadding: number;
+}
 
 export const defaultDiagramAppearance: DiagramAppearance = {
-  canvasColor: "#fafafa", gridColor: "#d7dde1", controlFlowColor: "#58666d", objectFlowColor: "#58666d",
+  canvasColor: "#fafafa", gridColor: "#d7dde1", controlFlowColor: "#000000", objectFlowColor: "#000000",
+  nodeFontSize: 12, nodeInnerPadding: 12,
 };
 
 export interface DiagramNode {
@@ -44,6 +53,10 @@ export interface DiagramEdge {
   guardLabel: string;
   routing: "automatic" | "manual";
   style?: DiagramEdgeStyle;
+}
+
+export function resolveEdgeColor(edge: Pick<DiagramEdge, "style">): string {
+  return edge.style?.stroke ?? "#000000";
 }
 
 export interface DiagramLane { id: string; name: string; width: number; colorIndex: number; style?: DiagramNodeStyle }
@@ -96,7 +109,14 @@ const laneSchema = z.object({
   colorIndex: z.number().int().min(0).max(7), style: styleSchema.optional(),
 }).strict();
 const swimlaneLayoutSchema = z.object({ heightMode: z.enum(["automatic", "fixed"]), height: z.number().finite().int().min(320).max(5_000) }).strict();
-const appearanceSchema = z.object({ canvasColor: requiredSafeColor, gridColor: requiredSafeColor, controlFlowColor: requiredSafeColor, objectFlowColor: requiredSafeColor }).strict();
+const appearanceSchema = z.object({
+  canvasColor: requiredSafeColor,
+  gridColor: requiredSafeColor,
+  controlFlowColor: requiredSafeColor,
+  objectFlowColor: requiredSafeColor,
+  nodeFontSize: z.number().finite().int().min(10).max(20).default(defaultDiagramAppearance.nodeFontSize),
+  nodeInnerPadding: z.number().finite().int().min(4).max(20).default(defaultDiagramAppearance.nodeInnerPadding),
+}).strict();
 
 const processSchema = z.object({
   id: z.string().min(1).max(80), name: z.string().min(1).max(120).refine((name) => name.trim().length > 0, "Process name cannot be blank"), position: positionSchema,
@@ -127,7 +147,7 @@ export const diagramSchema = z.object({
       ids.add(item.id);
     }
   }
-  if (nodeCount > 5_000 || edgeCount > 10_000 || laneCount > 100) context.addIssue({ code: "custom", message: "Diagram item limit exceeded" });
+  if (nodeCount > 5_000 || edgeCount > 10_000 || laneCount > MAX_DIAGRAM_LANES) context.addIssue({ code: "custom", message: "Diagram item limit exceeded" });
 });
 
 function newProcess(name: string): DiagramProcess {

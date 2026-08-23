@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.tools/
+
+# Local AI/design/browser tooling
+.assets/
+.codex-skill-build/
+.playwright-cli/
+.stitch/
+.superpowers/
+
+# Test output
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+coverage/
+
+# Build / scratch output
+dist/
+tmp/
+output/
+*.log
+npm-debug.log*
+*.tsbuildinfo
+
+# Local editor state (keep shared .claude config, ignore per-user overrides)
+.claude/settings.local.json
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Exported diagrams produced while testing locally
+*.local.json
+export-scratch/
+
+# Self-hosted runtime data and secrets
+.env
+server/data/
+server/.env
+web/.env.local
+
+# Local project context
+CONTEXT.md
+
+# One-off local generation/design utilities (keep release scripts below)
+scripts/*
+!scripts/dev.mjs
+!scripts/docker-acceptance.mjs
+tools/

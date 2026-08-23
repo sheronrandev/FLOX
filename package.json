@@ -1,0 +1,25 @@
+{
+  "name": "activity-diagram-tool",
+  "version": "2.0.0",
+  "description": "Local-first UML activity diagram editor built with React, TypeScript, and React Flow.",
+  "license": "Apache-2.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "npm --prefix web run dev",
+    "dev:server": "npm --prefix server start",
+    "start:server": "npm --prefix server start",
+    "build": "npm --prefix web run build",
+    "preview": "npm --prefix web run preview",
+    "typecheck": "npm --prefix web run typecheck",
+    "test": "npm --prefix web test && npm --prefix server test",
+    "test:e2e": "npm --prefix web run test:e2e",
+    "test:e2e:firefox": "npm --prefix web run test:e2e:firefox",
+    "test:docker": "node scripts/docker-acceptance.mjs",
+    "verify": "npm run typecheck && npm test && npm run build",
+    "verify:release": "npm run verify && npm run test:e2e && npm run test:docker"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Columns3, Settings2, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Columns3, Crosshair, Settings2, Trash2 } from "lucide-react";
 import type { DiagramProcess } from "../../domain/diagram";
 import { useDiagramStore } from "../../store/diagram-store";
 import { LanePropertiesForm } from "../LanePropertiesForm";
@@ -11,6 +11,7 @@ export interface ProcessLanePanelProps {
   readOnly: boolean;
   editRequestId: string | null;
   onConsumeEditRequest: () => void;
+  onShowOnCanvas: (processId: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   onAnnouncement: (message: string) => void;
 }
@@ -21,6 +22,7 @@ export function ProcessLanePanel({
   readOnly,
   editRequestId,
   onConsumeEditRequest,
+  onShowOnCanvas,
   onDirtyChange,
   onAnnouncement,
 }: ProcessLanePanelProps) {
@@ -66,8 +68,10 @@ export function ProcessLanePanel({
   function closeLaneEditor(confirmDiscard = true): boolean {
     if (!openLaneId) return true;
     if (confirmDiscard && laneDirty && !window.confirm("Discard unsaved swimlane changes?")) return false;
+    const laneId = openLaneId;
     setOpenLaneId(null);
     setLaneDirty(false);
+    window.setTimeout(() => window.document.getElementById(`lane-properties-${laneId}`)?.focus(), 0);
     return true;
   }
 
@@ -102,8 +106,12 @@ export function ProcessLanePanel({
         </small>
       </header>
 
-      {!readOnly && (
-        <div className="process-lane-panel__actions">
+      <div className="process-lane-panel__actions">
+        <Button variant="outline" size="sm" aria-label={`Show ${process.name} on canvas`} onClick={() => onShowOnCanvas(process.id)}>
+          <Crosshair aria-hidden="true" />
+          Show on canvas
+        </Button>
+        {!readOnly && <>
           <Button variant="outline" size="sm" onClick={openProcessSettings}>
             <Settings2 aria-hidden="true" />
             Process settings
@@ -119,8 +127,8 @@ export function ProcessLanePanel({
             <Columns3 aria-hidden="true" />
             Add swimlane
           </Button>
-        </div>
-      )}
+        </>}
+      </div>
 
       <div className="process-lane-panel__list">
         {!readOnly && processEditorOpen && (

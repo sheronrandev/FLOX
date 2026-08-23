@@ -38,6 +38,7 @@ describe("selected process lane panel", () => {
         readOnly={false}
         editRequestId={null}
         onConsumeEditRequest={() => undefined}
+        onShowOnCanvas={() => undefined}
         onDirtyChange={onDirtyChange}
         onAnnouncement={() => undefined}
       />,
@@ -63,6 +64,7 @@ describe("selected process lane panel", () => {
         readOnly
         editRequestId={null}
         onConsumeEditRequest={() => undefined}
+        onShowOnCanvas={() => undefined}
         onDirtyChange={() => undefined}
         onAnnouncement={() => undefined}
       />,

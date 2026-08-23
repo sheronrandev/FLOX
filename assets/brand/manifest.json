@@ -1,0 +1,12 @@
+{
+  "brand": "FLOX",
+  "version": "1.0.0",
+  "updatedAt": "2026-08-07",
+  "assets": [
+    { "id": "flox-mark-vector", "type": "logo", "path": "logos/flox-mark.svg", "variant": "full-color", "status": "approved" },
+    { "id": "flox-lockup-horizontal", "type": "logo", "path": "logos/flox-lockup-horizontal.svg", "variant": "horizontal", "status": "approved" },
+    { "id": "flox-lockup-stacked", "type": "logo", "path": "logos/flox-lockup-stacked.svg", "variant": "stacked", "status": "approved" },
+    { "id": "flox-lockup-reversed", "type": "logo", "path": "logos/flox-lockup-reversed.svg", "variant": "reversed", "status": "approved" },
+    { "id": "flox-mark-raster", "type": "icon", "path": "icons/flox-mark.png", "variant": "raster-source", "status": "approved" }
+  ]
+}

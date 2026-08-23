@@ -278,6 +278,7 @@ export function ProcessManagerDialog({ readOnly, onClose }: ProcessManagerDialog
             readOnly={readOnly}
             editRequestId={editRequestId}
             onConsumeEditRequest={() => setEditRequestId(null)}
+            onShowOnCanvas={showOnCanvas}
             onDirtyChange={setLanePanelDirty}
             onAnnouncement={setAnnouncement}
           />

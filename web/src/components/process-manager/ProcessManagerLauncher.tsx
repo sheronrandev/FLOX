@@ -24,7 +24,10 @@ export function ProcessManagerLauncher({
         variant="outline"
         className="process-manager-launcher__button"
         aria-label={`Open processes (${processes.length})`}
-        onClick={onOpen}
+        onClick={(event) => {
+          event.currentTarget.focus();
+          onOpen();
+        }}
       >
         <PanelsTopLeft aria-hidden="true" />
         {!collapsed && (

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDiagram, type DiagramProcess } from "../../domain/diagram";
 import { useDiagramStore } from "../../store/diagram-store";
@@ -60,7 +60,7 @@ describe("process manager dialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Select Process 002" }));
     expect(useDiagramStore.getState().activeProcessId).toBe("process-001");
-    fireEvent.click(screen.getByRole("button", { name: "Show Process 002 on canvas" }));
+    fireEvent.click(within(screen.getByRole("list", { name: "Processes" })).getByRole("button", { name: "Show Process 002 on canvas" }));
     expect(useDiagramStore.getState().activeProcessId).toBe("process-002");
     expect(onClose).toHaveBeenCalledOnce();
   });

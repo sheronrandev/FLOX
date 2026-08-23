@@ -1,16 +1,43 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { addSwimlaneToActiveProcess, openProcessManager } from "./process-manager-fixture";
 
 test("dashboard and editor have no serious automated accessibility violations", async ({ page, isMobile }) => {
   await page.goto("/projects");
   let results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Activity").click();
-  if (isMobile) await page.getByRole("button", { name: "Expand tools" }).click();
-  await page.getByRole("button", { name: /Lane settings for/ }).click();
+  const processManager = await openProcessManager(page);
+  if (isMobile) await processManager.getByRole("button", { name: "Select Untitled diagram" }).click();
+  await processManager.getByRole("button", { name: /Lane settings for/ }).click();
   results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
+});
+
+test("decision guard dialog has no serious automated accessibility violations", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Precise connector pointer coverage runs on desktop engines");
+  await page.goto("/projects");
+  await page.getByRole("button", { name: "New diagram" }).click();
+  await addSwimlaneToActiveProcess(page);
+  await page.getByTitle("Add Decision").click();
+  await page.getByTitle("Add Activity").click();
+  await page.getByRole("button", { name: "Fit diagram" }).click();
+  await page.waitForTimeout(250);
+
+  const source = page.locator('.uml-node--decision .uml-anchor[data-handleid="right"]');
+  const target = page.locator('.uml-node--activity .uml-anchor[data-handleid="left"]').last();
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 12 });
+  await page.mouse.up();
+
+  const dialog = page.getByRole("dialog", { name: "Guard label required" });
+  await expect(dialog).toBeVisible();
+  const results = await new AxeBuilder({ page }).include(".guard-label-dialog").analyze();
   expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
 });
 
@@ -18,19 +45,21 @@ test("export dialog keeps native groups, announcements, focus, and reflow access
   test.setTimeout(60_000);
   await page.goto("/projects");
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Activity").click();
-  if (isMobile) await page.getByRole("button", { name: "Expand tools" }).click();
-  await page.getByRole("button", { name: "Add process" }).click();
-  await page.getByLabel("Process name").fill("Second flow");
-  await page.locator(".process-editor-disclosure").getByRole("button", { name: "Save" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  const manager = await openProcessManager(page);
+  await manager.getByRole("button", { name: "Add process" }).click();
+  await manager.getByLabel("Process name").fill("Second flow");
+  await manager.locator(".process-manager-add-form").getByRole("button", { name: "Save" }).click();
+  await manager.getByRole("button", { name: "Add swimlane" }).click();
+  await manager.getByRole("button", { name: "Close processes" }).click();
   await page.getByTitle("Add Activity").click();
 
-  const exportTrigger = page.getByTitle("Export JSON");
+  const exportTrigger = page.getByRole("button", { name: "Export" });
   await exportTrigger.click();
   let dialog = page.getByRole("dialog", { name: "Export diagrams" });
   await expect(dialog.getByRole("button", { name: "Close export" })).toBeFocused();
+  await dialog.getByRole("radio", { name: "JSON" }).check();
   await expect(dialog.getByRole("group", { name: "Format", exact: true })).toBeVisible();
   await expect(dialog.getByRole("group", { name: "Scope", exact: true })).toBeVisible();
   await expect(dialog.getByRole("group", { name: "Organization", exact: true })).toBeHidden();
@@ -60,6 +89,7 @@ test("export dialog keeps native groups, announcements, focus, and reflow access
   await expect(exportTrigger).toBeFocused();
 
   await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("button", { name: "Appearance" }).click();
   await page.getByRole("radio", { name: /Dark/ }).click();
   await page.getByRole("button", { name: "Close settings" }).click();
   await exportTrigger.click();
@@ -69,7 +99,7 @@ test("export dialog keeps native groups, announcements, focus, and reflow access
   expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
 
   await dialog.getByLabel("All-in-one").check();
-  await dialog.getByLabel("PNG").check();
+  await dialog.getByRole("radio", { name: "PNG" }).check();
   await page.evaluate(() => {
     const originalToBlob = HTMLCanvasElement.prototype.toBlob;
     HTMLCanvasElement.prototype.toBlob = function delayedToBlob(callback, type, quality) {
@@ -127,6 +157,7 @@ test("export dialog keeps native groups, announcements, focus, and reflow access
 test("dark mode settings, dashboard, and editor have no serious automated accessibility violations", async ({ page }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Appearance" }).click();
   await page.getByRole("radio", { name: /Dark/ }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
@@ -140,7 +171,7 @@ test("dark mode settings, dashboard, and editor have no serious automated access
   expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
 
   await page.getByRole("button", { name: "New diagram" }).click();
-  await page.getByTitle("Add Swimlane").click();
+  await addSwimlaneToActiveProcess(page);
   await page.getByTitle("Add Activity").click();
   results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
@@ -156,7 +187,7 @@ test("settings contains focus, closes with Escape, and restores the trigger", as
   await expect(page.getByRole("button", { name: "Close settings" })).toBeFocused();
 
   await page.keyboard.press("Shift+Tab");
-  await expect(page.getByLabel("Canvas")).toBeFocused();
+  await expect(dialog.locator(":focus")).toBeVisible();
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
@@ -199,6 +230,7 @@ test("overview and help routes provide accessible navigation and content", async
 test("overview and help remain accessible in dark mode", async ({ page }) => {
   await page.goto("/projects");
   await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Appearance" }).click();
   await page.getByRole("radio", { name: /Dark/ }).click();
   await page.getByRole("button", { name: "Close settings" }).click();
 
