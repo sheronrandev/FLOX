@@ -1,5 +1,10 @@
 # Deploying FLOX to GitHub Pages
 
+> Ship the static workspace while keeping diagram data local to each visitor.
+
+[Documentation hub](README.md) · [Project overview](../README.md) ·
+[Release verification](verification.md)
+
 FLOX can run as a static GitHub Pages application. Projects remain in each
 visitor's browser, and JSON/SVG/PNG export works without a server.
 

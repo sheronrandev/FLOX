@@ -1,5 +1,10 @@
 # Security review notes
 
+> Trace trust boundaries from imported diagram to deployed service.
+
+[Documentation hub](README.md) · [Security policy](../SECURITY.md) ·
+[Self-hosting](self-hosting.md)
+
 ## Automated coverage
 
 The server suite checks password hashing, session invalidation, CSRF and origin

@@ -1,5 +1,10 @@
 # Scaling decisions
 
+> Measure the constraint, preserve the domain boundary, then deepen the system.
+
+[Documentation hub](README.md) · [Architecture](../README.md#architecture-at-a-glance) ·
+[Self-hosting](self-hosting.md)
+
 FLOX currently targets one self-hosted API instance backed by a
 durable local volume. This keeps privacy, backups, and failure recovery easy to
 understand.

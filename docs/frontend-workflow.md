@@ -1,5 +1,10 @@
 # FLOX frontend workflow
 
+> Shape the interface around calm technical clarity and verifiable user paths.
+
+[Documentation hub](README.md) · [Project overview](../README.md) ·
+[Release verification](verification.md)
+
 This document records how the ten-phase frontend workflow is applied to the
 current FLOX application. It is a release baseline, not a parallel redesign
 specification.

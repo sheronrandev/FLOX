@@ -1,5 +1,10 @@
 # Release verification
 
+> Follow the flow from static checks to browser behavior to deployment evidence.
+
+[Documentation hub](README.md) · [Contribution flow](../CONTRIBUTING.md) ·
+[GitHub Pages deployment](github-pages.md)
+
 `npm run verify:release` performs type checking, focused web and server tests,
 the production build, Edge/WebKit/mobile browser workflows, accessibility
 scans, visual regression checks, and Docker acceptance when Docker is present.

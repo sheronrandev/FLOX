@@ -1,5 +1,10 @@
 # Self-hosting FLOX
 
+> Own the runtime, credentials, storage, backup path, and recovery test.
+
+[Documentation hub](README.md) · [Security policy](../SECURITY.md) ·
+[Scaling decisions](scaling.md)
+
 ## Local development
 
 Use Node.js 20 or newer. Start the API and Vite together:
