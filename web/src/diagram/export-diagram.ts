@@ -1,6 +1,6 @@
 import { resolveEdgeColor, type DiagramAppearance, type DiagramDocument, type DiagramNode } from "../domain/diagram";
 import { defaultNodeStyles, getExternalLabelLayout, getNodeDimensions, getNodeTextLayout, resolveNodeStyle, wrapText } from "../domain/notation";
-import { getSwimlanePoolGeometry } from "../domain/swimlane-layout";
+import { getProcessTitleLayout, getSwimlanePoolGeometry } from "../domain/swimlane-layout";
 import type { ExportPreferences } from "../domain/preferences";
 import { guardLabelPoint, routeAll, type Point } from "./routing";
 import { flattenProcesses } from "../domain/process-layout";
@@ -30,9 +30,10 @@ function centeredText(x: number, y: number, value: string, color: string, size =
   return `<text x="${x}" y="${y}" fill="${color}" font-family="Inter,Segoe UI,sans-serif" font-size="${size}" font-weight="${weight}" text-anchor="middle" dominant-baseline="middle">${xml(value)}</text>`;
 }
 
-function processTitleText(x: number, y: number, value: string, poolWidth: number, fontSize: number) {
-  const maxCharacters = Math.max(1, Math.floor((poolWidth - 32) / (fontSize * 0.58)));
-  return centeredText(x, y, value, defaultNodeStyles.activity.textColor, fontSize, 700, maxCharacters);
+function processTitleText(x: number, y: number, value: string, poolWidth: number, appearance: DiagramAppearance) {
+  const layout = getProcessTitleLayout(value, poolWidth, appearance);
+  if (layout.lines.length === 1) return centeredText(x, y, layout.lines[0], defaultNodeStyles.activity.textColor, layout.fontSize, 700, Number.MAX_SAFE_INTEGER);
+  return centeredMultilineText(x, y, layout.lines, defaultNodeStyles.activity.textColor, layout.fontSize, 700, layout.lineHeight);
 }
 
 function centeredMultilineText(x: number, y: number, lines: string[], color: string, size = 13, weight = 600, lineHeight = 16) {
@@ -128,7 +129,7 @@ export function diagramToSvg(document: DiagramDocument, transparentBackground: b
     const stroke = process.lanes.find((lane) => lane.style?.stroke)?.style?.stroke ?? "#6e7977";
     const separators = pool.separatorXs.map((x) => `<line class="swimlane-separator" x1="${x}" y1="${pool.laneY}" x2="${x}" y2="${pool.y + pool.height}" stroke="${stroke}" stroke-dasharray="4 4"/>`).join("");
     const empty = process.lanes.length ? "" : centeredText(pool.x + pool.width / 2, pool.y + pool.titleHeight + 24, "Add a swimlane", "#6e7977", 11, 400);
-    return `<g data-process-id="${xml(process.id)}"><rect class="swimlane-title-row" x="${pool.x}" y="${pool.y}" width="${pool.width}" height="${pool.titleHeight}" fill="${titleFill}"/>${laneFills}<rect class="swimlane-pool-outline" x="${pool.x}" y="${pool.y}" width="${pool.width}" height="${pool.height}" fill="none" stroke="${stroke}"/><line class="swimlane-title-rule" x1="${pool.x}" y1="${pool.laneY}" x2="${pool.x + pool.width}" y2="${pool.laneY}" stroke="${stroke}"/>${separators}${processTitleText(pool.x + pool.width / 2, pool.y + pool.titleHeight / 2, process.name, pool.width, document.appearance.nodeFontSize)}${laneLabels}${empty}</g>`;
+    return `<g data-process-id="${xml(process.id)}"><rect class="swimlane-title-row" x="${pool.x}" y="${pool.y}" width="${pool.width}" height="${pool.titleHeight}" fill="${titleFill}"/>${laneFills}<rect class="swimlane-pool-outline" x="${pool.x}" y="${pool.y}" width="${pool.width}" height="${pool.height}" fill="none" stroke="${stroke}"/><line class="swimlane-title-rule" x1="${pool.x}" y1="${pool.laneY}" x2="${pool.x + pool.width}" y2="${pool.laneY}" stroke="${stroke}"/>${separators}${processTitleText(pool.x + pool.width / 2, pool.y + pool.titleHeight / 2, process.name, pool.width, document.appearance)}${laneLabels}${empty}</g>`;
   }).join("");
   const markers = flat.edges.map((edge, index) => {
     const color = resolveEdgeColor(edge);

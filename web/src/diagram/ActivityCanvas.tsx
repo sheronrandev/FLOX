@@ -20,7 +20,7 @@ import { buildSwimlanePoolNode, SwimlanePoolNode, type SwimlanePoolFlowNode } fr
 import { RoutedEdge } from "./RoutedEdge";
 import { routeAll, type Point } from "./routing";
 import { areConnectionHandlesAvailable, canConnectNodes, flattenProcesses, indexOccupiedExclusiveAnchors, processAtNode } from "../domain/process-layout";
-import { getSwimlanePoolGeometry, SWIMLANE_POOL_X, SWIMLANE_LANE_Y, SWIMLANE_TITLE_HEIGHT } from "../domain/swimlane-layout";
+import { getProcessTitleLayout, getSwimlanePoolGeometry, SWIMLANE_POOL_X, SWIMLANE_LANE_Y } from "../domain/swimlane-layout";
 import { ProcessTitleNode, type ProcessTitleFlowNode } from "./ProcessTitleNode";
 import { defaultNodeStyles, getNodeDimensions, resolveNodeStyle } from "../domain/notation";
 import { GuardLabelDialog } from "./GuardLabelDialog";
@@ -100,11 +100,22 @@ export function ActivityCanvas({ readOnly = false }: { readOnly?: boolean }) {
     const pools = document.processes.map((process) => buildSwimlanePoolNode(process, document.appearance));
     const titles: ProcessTitleFlowNode[] = document.processes.map((process) => {
       const geometry = getSwimlanePoolGeometry(process, document.appearance);
+      const titleLayout = getProcessTitleLayout(process.name, geometry.width, document.appearance);
       return {
         id: `__process-title-${process.id}`,
         type: "process-title",
         position: { x: geometry.x, y: geometry.y },
-        data: { processId: process.id, name: process.name, width: geometry.width, textColor: defaultNodeStyles.activity.textColor, fontSize: document.appearance.nodeFontSize, readOnly },
+        data: {
+          processId: process.id,
+          name: process.name,
+          width: geometry.width,
+          textColor: defaultNodeStyles.activity.textColor,
+          fontSize: titleLayout.fontSize,
+          lineHeight: titleLayout.lineHeight,
+          titleHeight: geometry.titleHeight,
+          lines: titleLayout.lines,
+          readOnly,
+        },
         style: { width: geometry.width, height: geometry.titleHeight },
         draggable: !readOnly,
         dragHandle: ".process-title-node__handle",
@@ -174,7 +185,10 @@ export function ActivityCanvas({ readOnly = false }: { readOnly?: boolean }) {
       if (change.id.startsWith("__process-title-")) {
         if (change.type === "position" && change.position) {
           const processId = change.id.slice("__process-title-".length);
-          moveProcess(processId, { x: change.position.x - SWIMLANE_POOL_X, y: change.position.y - SWIMLANE_LANE_Y + SWIMLANE_TITLE_HEIGHT });
+          const process = document.processes.find((entry) => entry.id === processId);
+          if (!process) continue;
+          const geometry = getSwimlanePoolGeometry(process, document.appearance);
+          moveProcess(processId, { x: change.position.x - SWIMLANE_POOL_X, y: change.position.y - SWIMLANE_LANE_Y + geometry.titleHeight });
         }
         continue;
       }
@@ -182,7 +196,7 @@ export function ActivityCanvas({ readOnly = false }: { readOnly?: boolean }) {
       if (change.type === "remove") removed.push(change.id);
     }
     if (removed.length) removeNodes(removed);
-  }, [moveNode, moveProcess, removeNodes]);
+  }, [document.appearance, document.processes, moveNode, moveProcess, removeNodes]);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     const removed = changes.filter((change) => change.type === "remove").map((change) => change.id);

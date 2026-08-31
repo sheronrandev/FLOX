@@ -144,6 +144,16 @@ describe("diagram store", () => {
     expect(process().nodes).toHaveLength(1);
   });
 
+  it("updates the process name font size as an undoable and redoable project setting", () => {
+    expect(useDiagramStore.getState().document.appearance.processNameFontSize).toBe(20);
+    useDiagramStore.getState().updateAppearance({ processNameFontSize: 40 });
+    expect(useDiagramStore.getState().document.appearance.processNameFontSize).toBe(40);
+    useDiagramStore.getState().undo();
+    expect(useDiagramStore.getState().document.appearance.processNameFontSize).toBe(20);
+    useDiagramStore.getState().redo();
+    expect(useDiagramStore.getState().document.appearance.processNameFontSize).toBe(40);
+  });
+
   it("does not publish state for an unchanged selection", () => {
     const before = useDiagramStore.getState();
     useDiagramStore.getState().setSelection([], []);

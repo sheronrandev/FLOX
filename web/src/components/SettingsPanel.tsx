@@ -38,6 +38,7 @@ export function SettingsPanel({ theme, themePreference, onThemePreferenceChange,
   const updateProjectAppearance = useDiagramStore((state) => state.updateAppearance);
   const defaultThemeActive = themesEqual(theme, themePresets[theme.mode]);
   const projectDefaultsActive = projectAppearance.nodeFontSize === defaultDiagramAppearance.nodeFontSize
+    && projectAppearance.processNameFontSize === defaultDiagramAppearance.processNameFontSize
     && projectAppearance.nodeInnerPadding === defaultDiagramAppearance.nodeInnerPadding;
   useDialogFocus(dialogRef, onClose);
 
@@ -60,6 +61,7 @@ export function SettingsPanel({ theme, themePreference, onThemePreferenceChange,
   function resetProjectDefaults() {
     updateProjectAppearance({
       nodeFontSize: defaultDiagramAppearance.nodeFontSize,
+      processNameFontSize: defaultDiagramAppearance.processNameFontSize,
       nodeInnerPadding: defaultDiagramAppearance.nodeInnerPadding,
     });
   }
@@ -97,7 +99,8 @@ export function SettingsPanel({ theme, themePreference, onThemePreferenceChange,
             <div className="theme-reset-row"><p aria-live="polite">{themeStatus}</p><Button type="button" variant="outline" size="sm" disabled={defaultThemeActive} onClick={() => onThemeChange({ ...themePresets[theme.mode] })}><RotateCcw aria-hidden="true" /> Reset theme</Button></div>
           </>}
           {tab === "project" && projectSettings && <><div className="settings-title"><h3>Project</h3><p>Set the typography and node density used by this diagram and its exports.</p></div>
-            <label className="settings-field"><span>Default font size<small>Applies to process names, node text, actor labels, decision guards, and node sub-components. Application interface text is unchanged.</small></span><select aria-label="Default diagram font size" disabled={projectSettings.readOnly} value={projectAppearance.nodeFontSize} onChange={(event) => updateProjectAppearance({ nodeFontSize: Number(event.target.value) })}>{Array.from({ length: 11 }, (_, index) => index + 10).map((size) => <option key={size} value={size}>{size} px{size === defaultDiagramAppearance.nodeFontSize ? " (Default)" : ""}</option>)}</select></label>
+            <label className="settings-field"><span>Default font size<small>Applies to node text, actor labels, decision guards, and node sub-components. Application interface text is unchanged.</small></span><select aria-label="Default diagram font size" disabled={projectSettings.readOnly} value={projectAppearance.nodeFontSize} onChange={(event) => updateProjectAppearance({ nodeFontSize: Number(event.target.value) })}>{Array.from({ length: 11 }, (_, index) => index + 10).map((size) => <option key={size} value={size}>{size} px{size === defaultDiagramAppearance.nodeFontSize ? " (Default)" : ""}</option>)}</select></label>
+            <label className="settings-field"><span>Process name label font size<small>Changes process titles on the canvas and in PNG and SVG exports.</small></span><select aria-label="Process name label font size" disabled={projectSettings.readOnly} value={projectAppearance.processNameFontSize} onChange={(event) => updateProjectAppearance({ processNameFontSize: Number(event.target.value) })}>{Array.from({ length: 23 }, (_, index) => index + 18).map((size) => <option key={size} value={size}>{size} px{size === defaultDiagramAppearance.processNameFontSize ? " (Default)" : ""}</option>)}</select></label>
             <label className="settings-field"><span>Default inner padding<small>Changes spacing inside text-bearing nodes. Fixed UML symbols, including decision diamonds, remain unchanged.</small></span><select aria-label="Default node inner padding" disabled={projectSettings.readOnly} value={projectAppearance.nodeInnerPadding} onChange={(event) => updateProjectAppearance({ nodeInnerPadding: Number(event.target.value) })}>{Array.from({ length: 17 }, (_, index) => index + 4).map((padding) => <option key={padding} value={padding}>{padding} px{padding === defaultDiagramAppearance.nodeInnerPadding ? " (Default)" : ""}</option>)}</select></label>
             <div className="theme-reset-row"><p aria-live="polite">{projectDefaultsActive ? "Project typography is using the default values." : "Custom project typography is active."}</p><Button type="button" variant="outline" size="sm" disabled={projectSettings.readOnly || projectDefaultsActive} onClick={resetProjectDefaults}><RotateCcw aria-hidden="true" /> Reset to defaults</Button></div>
             {projectSettings.readOnly && <div className="settings-note"><strong>View-only project</strong><p>These project defaults can be viewed here, but only an editor or owner can change them.</p></div>}

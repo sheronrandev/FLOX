@@ -1,5 +1,5 @@
 import type { DiagramNode, DiagramProcess } from "./diagram";
-import { getExternalLabelLayout, getNodeDimensions, type NodeLayoutSettings } from "./notation";
+import { getExternalLabelLayout, getNodeDimensions, type NodeLayoutSettings, wrapText } from "./notation";
 
 export const SWIMLANE_POOL_X = 40;
 export const SWIMLANE_LANE_Y = 30;
@@ -11,6 +11,9 @@ export const SWIMLANE_ACTOR_HEADER_HEIGHT = 48;
 export const SWIMLANE_NODE_MIN_Y = SWIMLANE_LANE_Y + SWIMLANE_ACTOR_HEADER_HEIGHT + SWIMLANE_NODE_PADDING;
 export const OVERLAPPED_NODE_GAP = 32;
 export const EMPTY_PROCESS_WIDTH = 320;
+export const DEFAULT_PROCESS_NAME_FONT_SIZE = 20;
+const PROCESS_TITLE_HORIZONTAL_PADDING = 68;
+const PROCESS_TITLE_VERTICAL_PADDING = 10;
 
 const externalLabelTypes = new Set(["initial", "final", "fork", "join", "merge"]);
 
@@ -74,20 +77,41 @@ export interface SwimlanePoolGeometry {
   width: number; height: number; separatorXs: number[];
 }
 
+export interface ProcessTitleLayout {
+  lines: string[];
+  fontSize: number;
+  lineHeight: number;
+  height: number;
+}
+
+export function getProcessTitleLayout(name: string, poolWidth: number, settings?: NodeLayoutSettings): ProcessTitleLayout {
+  const fontSize = settings?.processNameFontSize ?? DEFAULT_PROCESS_NAME_FONT_SIZE;
+  const lineHeight = fontSize + 4;
+  const maxCharacters = Math.max(1, Math.floor((poolWidth - PROCESS_TITLE_HORIZONTAL_PADDING) / (fontSize * 0.58)));
+  const lines = wrapText(name, maxCharacters);
+  return {
+    lines,
+    fontSize,
+    lineHeight,
+    height: Math.max(SWIMLANE_TITLE_HEIGHT, lines.length * lineHeight + PROCESS_TITLE_VERTICAL_PADDING),
+  };
+}
+
 export function getSwimlanePoolGeometry(process: DiagramProcess, settings?: NodeLayoutSettings): SwimlanePoolGeometry {
   const laneHeight = resolveSwimlaneHeight(process, settings);
   const widths = process.lanes.map((lane) => lane.width);
   let offset = process.position.x + SWIMLANE_POOL_X;
   const separatorXs = widths.slice(0, -1).map((width) => { offset += width; return offset });
   const width = widths.length ? widths.reduce((sum, value) => sum + value, 0) : EMPTY_PROCESS_WIDTH;
+  const titleHeight = getProcessTitleLayout(process.name, width, settings).height;
   return {
     x: process.position.x + SWIMLANE_POOL_X,
-    y: process.position.y + SWIMLANE_LANE_Y - SWIMLANE_TITLE_HEIGHT,
+    y: process.position.y + SWIMLANE_LANE_Y - titleHeight,
     laneY: process.position.y + SWIMLANE_LANE_Y,
-    titleHeight: SWIMLANE_TITLE_HEIGHT,
+    titleHeight,
     laneHeight,
     width,
-    height: SWIMLANE_TITLE_HEIGHT + laneHeight,
+    height: titleHeight + laneHeight,
     separatorXs,
   };
 }

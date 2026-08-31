@@ -511,8 +511,9 @@ svg { flex: 0 0 auto; }
 .swimlane-pool__lane > span { display: block; padding: 12px 10px 0; font: 600 var(--diagram-font-size, 12px)/var(--diagram-line-height, 16px) var(--mono); letter-spacing: .03em; overflow-wrap: anywhere; }
 .swimlane-pool__separator { position: absolute; top: 0; right: 0; bottom: 0; border-right: 1px dashed var(--border); }
 .swimlane-pool__empty { position: absolute; top: calc(var(--pool-title-height) + 18px); left: 0; width: 100%; color: var(--muted); font: 400 9px/13px var(--mono); text-align: center; pointer-events: none; }
-.process-title-node { height: 40px; }
-.process-title-node__handle { position: relative; display: flex; width: 100%; height: 40px; align-items: center; justify-content: center; gap: 7px; padding: 0 34px; border: 0; background: transparent; color: inherit; cursor: grab; font: 600 var(--diagram-font-size, 12px)/var(--diagram-line-height, 16px) var(--sans); text-align: center; }
+.process-title-node { height: 100%; }
+.process-title-node__handle { position: relative; display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; gap: 7px; padding: 5px 34px; border: 0; background: transparent; color: inherit; cursor: grab; font: 600 var(--diagram-font-size, 12px)/var(--diagram-line-height, 16px) var(--sans); text-align: center; }
+.process-title-node__handle span { white-space: pre-line; }
 .process-title-node__handle:active { cursor: grabbing; }
 .process-title-node__handle:focus-visible { border-radius: 2px; outline: 2px solid var(--ring); outline-offset: -3px; }
 .process-title-node__handle svg { position: absolute; left: 10px; width: 14px; color: var(--muted); opacity: .5; }

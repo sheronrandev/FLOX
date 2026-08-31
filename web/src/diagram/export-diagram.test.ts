@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDiagram } from "../domain/diagram";
+import { getProcessTitleLayout, getSwimlanePoolGeometry } from "../domain/swimlane-layout";
 import { processExportFilename } from "./process-export";
 import { diagramToSvg, exportDiagramImage, safeExportName } from "./export-diagram";
 
@@ -33,9 +34,10 @@ describe("diagram image export", () => {
       .rejects.toThrow("incomplete node or process position");
   });
 
-  it("exports the project font size for process, actor, guard, and node text", () => {
+  it("exports the dedicated process font size separately from actor, guard, and node text", () => {
     const document = createDiagram("Typography export");
     document.appearance.nodeFontSize = 16;
+    document.appearance.processNameFontSize = 24;
     const process = document.processes[0];
     process.name = "Custom process";
     process.lanes = [{ id: "lane", name: "Reviewer", width: 280, colorIndex: 0 }];
@@ -47,7 +49,8 @@ describe("diagram image export", () => {
 
     const svg = diagramToSvg(document, false);
 
-    for (const value of ["Custom process", "Reviewer", "Review", "accepted"]) {
+    expect(svg).toMatch(/font-size="24"[^>]*>Custom process/);
+    for (const value of ["Reviewer", "Review", "accepted"]) {
       expect(svg).toMatch(new RegExp(`font-size="16"[^>]*>[^<]*(?:<tspan[^>]*>)?${value}`));
     }
   });
@@ -102,7 +105,7 @@ describe("diagram image export", () => {
     const svg = diagramToSvg(document, false);
     const escapedTitle = "FIN1-P01-D01 — Normal Processing - Purchase Requisition";
     expect(svg).toContain(`>${escapedTitle}</text>`);
-    expect(svg).toMatch(/fill="#000000"[^>]*font-size="12"[^>]*font-weight="700"[^>]*>FIN1-P01-D01/);
+    expect(svg).toMatch(/fill="#000000"[^>]*font-size="20"[^>]*font-weight="700"[^>]*>FIN1-P01-D01/);
     expect(svg).not.toContain(`<tspan x="${40 + (280 * 3) / 2}"`);
     expect(svg).toContain('class="swimlane-title-row" x="40" y="-10" width="840" height="40"');
   });
@@ -114,10 +117,13 @@ describe("diagram image export", () => {
     process.lanes = [{ id: "lane-1", name: "Lane 1", width: 280, colorIndex: 0 }];
 
     const svg = diagramToSvg(document, false);
-    expect(svg).toContain("A very long business process");
-    expect(svg).toContain("that cannot fit in one lane");
+    const title = getProcessTitleLayout(process.name, 280, document.appearance);
+    for (const line of title.lines) expect(svg).toContain(`>${line}</tspan>`);
     expect(svg.match(/<tspan/g)?.length).toBeGreaterThan(1);
-    expect(svg).toContain('class="swimlane-title-row" x="40" y="-10" width="280" height="40"');
+    const geometry = getSwimlanePoolGeometry(process, document.appearance);
+    expect(geometry.titleHeight).toBeGreaterThan(40);
+    expect(svg).toContain(`class="swimlane-title-row" x="40" y="${geometry.y}" width="280" height="${geometry.titleHeight}"`);
+    expect(geometry.y + geometry.titleHeight).toBe(30);
   });
 
   it("rejects direct image exports that contain more than one process", async () => {

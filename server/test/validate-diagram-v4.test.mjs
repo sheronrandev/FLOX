@@ -23,6 +23,19 @@ describe("v4 nested diagram validation", () => {
     assert.deepEqual(validateDiagram(document()), document());
   });
 
+  it("accepts current typography settings and rejects process font sizes outside 18 through 40", () => {
+    for (const processNameFontSize of [18, 40]) {
+      const value = document();
+      value.appearance = { ...appearance, nodeFontSize: 12, processNameFontSize, nodeInnerPadding: 12 };
+      assert.equal(validateDiagram(value).appearance.processNameFontSize, processNameFontSize);
+    }
+    for (const processNameFontSize of [17, 41, 20.5]) {
+      const value = document();
+      value.appearance = { ...appearance, nodeFontSize: 12, processNameFontSize, nodeInnerPadding: 12 };
+      assert.throws(() => validateDiagram(value), /appearance/i);
+    }
+  });
+
   it("preserves selected-process and complete-project v4 export documents", () => {
     const selected = selectedProcessExport();
     const complete = completeProjectExport();

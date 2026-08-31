@@ -47,27 +47,38 @@ describe("client routing", () => {
     expect(container.querySelector('[role="radio"][aria-checked="true"]')).toBeTruthy();
     await act(async () => projectTab?.click());
     const fontSize = container.querySelector<HTMLSelectElement>('select[aria-label="Default diagram font size"]');
+    const processNameFontSize = container.querySelector<HTMLSelectElement>('select[aria-label="Process name label font size"]');
     const innerPadding = container.querySelector<HTMLSelectElement>('select[aria-label="Default node inner padding"]');
     expect(fontSize).toBeTruthy();
+    expect(processNameFontSize).toBeTruthy();
     expect(innerPadding).toBeTruthy();
     expect(fontSize?.querySelector('option[value="12"]')?.textContent).toBe("12 px (Default)");
+    expect(processNameFontSize?.querySelector('option[value="20"]')?.textContent).toBe("20 px (Default)");
+    expect(processNameFontSize?.querySelector('option[value="40"]')?.textContent).toBe("40 px");
+    expect(processNameFontSize?.querySelectorAll("option")).toHaveLength(23);
     expect(innerPadding?.querySelector('option[value="12"]')?.textContent).toBe("12 px (Default)");
     await act(async () => {
       if (!fontSize) return;
       fontSize.value = "16";
       fontSize.dispatchEvent(new Event("change", { bubbles: true }));
+      if (processNameFontSize) {
+        processNameFontSize.value = "40";
+        processNameFontSize.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       if (innerPadding) {
         innerPadding.value = "4";
         innerPadding.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
     expect(useDiagramStore.getState().document.appearance.nodeFontSize).toBe(16);
+    expect(useDiagramStore.getState().document.appearance.processNameFontSize).toBe(40);
     expect(useDiagramStore.getState().document.appearance.nodeInnerPadding).toBe(4);
+    expect(container.querySelector<HTMLElement>(".process-title-node__handle")?.style.fontSize).toBe("40px");
     expect(container.textContent).toContain("Application interface text is unchanged.");
     const resetDefaults = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Reset to defaults");
     expect(resetDefaults?.disabled).toBe(false);
     await act(async () => resetDefaults?.click());
-    expect(useDiagramStore.getState().document.appearance).toMatchObject({ nodeFontSize: 12, nodeInnerPadding: 12 });
+    expect(useDiagramStore.getState().document.appearance).toMatchObject({ nodeFontSize: 12, processNameFontSize: 20, nodeInnerPadding: 12 });
     expect(resetDefaults?.disabled).toBe(true);
     await act(async () => root.unmount());
   });

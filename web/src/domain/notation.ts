@@ -14,6 +14,7 @@ export interface TextLayout {
 
 export interface NodeLayoutSettings {
   nodeFontSize?: number;
+  processNameFontSize?: number;
   nodeInnerPadding?: number;
 }
 
