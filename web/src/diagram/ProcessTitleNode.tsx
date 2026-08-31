@@ -9,6 +9,9 @@ interface ProcessTitleData extends Record<string, unknown> {
   width: number;
   textColor: string;
   fontSize: number;
+  lineHeight: number;
+  titleHeight: number;
+  lines: string[];
   readOnly: boolean;
 }
 
@@ -30,18 +33,18 @@ export function ProcessTitleNode({ data }: NodeProps<ProcessTitleFlowNode>) {
     store.endGesture();
   }
 
-  return <div className="process-title-node" style={{ width: data.width, color: data.textColor }}>
+  return <div className="process-title-node" style={{ width: data.width, height: data.titleHeight, color: data.textColor }}>
     <button
       type="button"
       className="process-title-node__handle"
-      style={{ fontSize: `${data.fontSize}px`, lineHeight: `${data.fontSize + 4}px` }}
+      style={{ fontSize: `${data.fontSize}px`, lineHeight: `${data.lineHeight}px` }}
       aria-label={`Move process ${data.name}`}
       aria-describedby={`process-title-help-${data.processId}`}
       disabled={data.readOnly}
       onKeyDown={nudge}
     >
       <GripHorizontal aria-hidden="true" />
-      <span>{data.name}</span>
+      <span>{data.lines.join("\n")}</span>
     </button>
     <span id={`process-title-help-${data.processId}`} className="sr-only">Drag the title row, or use arrow keys to move this complete process. Hold Shift for larger steps.</span>
   </div>;

@@ -24,12 +24,13 @@ export interface DiagramAppearance {
   controlFlowColor: string;
   objectFlowColor: string;
   nodeFontSize: number;
+  processNameFontSize: number;
   nodeInnerPadding: number;
 }
 
 export const defaultDiagramAppearance: DiagramAppearance = {
   canvasColor: "#fafafa", gridColor: "#d7dde1", controlFlowColor: "#000000", objectFlowColor: "#000000",
-  nodeFontSize: 12, nodeInnerPadding: 12,
+  nodeFontSize: 12, processNameFontSize: 20, nodeInnerPadding: 12,
 };
 
 export interface DiagramNode {
@@ -115,6 +116,7 @@ const appearanceSchema = z.object({
   controlFlowColor: requiredSafeColor,
   objectFlowColor: requiredSafeColor,
   nodeFontSize: z.number().finite().int().min(10).max(20).default(defaultDiagramAppearance.nodeFontSize),
+  processNameFontSize: z.number().finite().int().min(18).max(40).default(defaultDiagramAppearance.processNameFontSize),
   nodeInnerPadding: z.number().finite().int().min(4).max(20).default(defaultDiagramAppearance.nodeInnerPadding),
 }).strict();
 

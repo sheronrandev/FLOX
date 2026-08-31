@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDiagram } from "./diagram";
-import { getSwimlanePoolGeometry, paddedNodePosition, resolveSwimlaneHeight, resolvedNodePositions } from "./swimlane-layout";
+import { getProcessTitleLayout, getSwimlanePoolGeometry, paddedNodePosition, resolveSwimlaneHeight, resolvedNodePositions } from "./swimlane-layout";
 
 describe("swimlane pool geometry", () => {
   it("places a 40px process title immediately above the preserved lane origin", () => {
@@ -13,6 +13,20 @@ describe("swimlane pool geometry", () => {
       x: 40, y: -10, titleHeight: 40, laneY: 30, laneHeight: 760,
       width: 640, height: 800, separatorXs: [340],
     });
+  });
+
+  it("grows a wrapped process title upward without moving the lane origin", () => {
+    const document = createDiagram("FIN1-P03-D21 - System Posting Failure - Purchase Order Processing");
+    const process = document.processes[0];
+    process.lanes = [{ id: "lane", name: "Accounts", width: 280, colorIndex: 0 }];
+    const title = getProcessTitleLayout(process.name, 280, document.appearance);
+    const geometry = getSwimlanePoolGeometry(process, document.appearance);
+
+    expect(title.lines.length).toBeGreaterThan(1);
+    expect(geometry.titleHeight).toBe(title.height);
+    expect(geometry.titleHeight).toBeGreaterThan(40);
+    expect(geometry.y + geometry.titleHeight).toBe(geometry.laneY);
+    expect(geometry.laneY).toBe(30);
   });
 
   it("grows automatic height for the deepest rendered label plus padding", () => {

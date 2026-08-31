@@ -15,9 +15,23 @@ describe("diagram document", () => {
   it("adds project typography defaults when opening an older v4 document", () => {
     const stored = JSON.parse(serializeDiagram(createDiagram("Older project")));
     delete stored.appearance.nodeFontSize;
+    delete stored.appearance.processNameFontSize;
     delete stored.appearance.nodeInnerPadding;
 
-    expect(parseDiagram(stored).appearance).toMatchObject({ nodeFontSize: 12, nodeInnerPadding: 12 });
+    expect(parseDiagram(stored).appearance).toMatchObject({ nodeFontSize: 12, processNameFontSize: 20, nodeInnerPadding: 12 });
+  });
+
+  it("accepts the complete process name font size range and rejects values outside it", () => {
+    for (const processNameFontSize of [18, 40]) {
+      const document = createDiagram();
+      document.appearance.processNameFontSize = processNameFontSize;
+      expect(parseDiagram(document).appearance.processNameFontSize).toBe(processNameFontSize);
+    }
+    for (const processNameFontSize of [17, 41]) {
+      const document = createDiagram();
+      document.appearance.processNameFontSize = processNameFontSize;
+      expect(() => parseDiagram(document)).toThrow();
+    }
   });
 
   it("rejects dangling and cross-process edges", () => {

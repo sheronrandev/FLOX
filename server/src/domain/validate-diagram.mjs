@@ -84,6 +84,9 @@ function validPosition(position) {
 function validLayout(layout) {
   return object(layout) && ownKeys(layout, new Set(["heightMode", "height"])) && ["automatic", "fixed"].includes(layout.heightMode) && Number.isInteger(layout.height) && layout.height >= 320 && layout.height <= 5000;
 }
+function optionalIntegerInRange(value, minimum, maximum) {
+  return value === undefined || Number.isInteger(value) && value >= minimum && value <= maximum;
+}
 
 export function validateDiagram(input, maxBytes = 2_000_000) {
   if (Buffer.byteLength(JSON.stringify(input)) > maxBytes) throw new HttpError(413, "Diagram exceeds the configured size limit", "diagram_too_large");
@@ -118,6 +121,10 @@ export function validateDiagram(input, maxBytes = 2_000_000) {
     }
   }
   if (nodeCount > 5000 || edgeCount > 10000 || laneCount > MAX_DIAGRAM_LANES) invalid("Diagram item limit exceeded");
-  if (!ownKeys(value.appearance, new Set(["canvasColor", "gridColor", "controlFlowColor", "objectFlowColor"])) || ![value.appearance.canvasColor, value.appearance.gridColor, value.appearance.controlFlowColor, value.appearance.objectFlowColor].every((color) => typeof color === "string" && HEX.test(color))) invalid("Invalid diagram appearance");
+  if (!ownKeys(value.appearance, new Set(["canvasColor", "gridColor", "controlFlowColor", "objectFlowColor", "nodeFontSize", "processNameFontSize", "nodeInnerPadding"]))
+    || ![value.appearance.canvasColor, value.appearance.gridColor, value.appearance.controlFlowColor, value.appearance.objectFlowColor].every((color) => typeof color === "string" && HEX.test(color))
+    || !optionalIntegerInRange(value.appearance.nodeFontSize, 10, 20)
+    || !optionalIntegerInRange(value.appearance.processNameFontSize, 18, 40)
+    || !optionalIntegerInRange(value.appearance.nodeInnerPadding, 4, 20)) invalid("Invalid diagram appearance");
   return value;
 }
