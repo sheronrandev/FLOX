@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "batchName": "Example FLOX batch",
+  "output": {
+    "projectFolderTemplate": "{projectName}",
+    "fileNameTemplate": "{order:02}.json"
+  },
+  "layout": {
+    "preset": "readable",
+    "laneWidth": 420,
+    "rankGap": 150,
+    "top": 90,
+    "processX": 0,
+    "processY": 0
+  },
+  "projects": [
+    {
+      "id": "operations",
+      "name": "Operations",
+      "order": 1,
+      "diagrams": [
+        {
+          "id": "approval-01",
+          "title": "Request approval",
+          "processName": "Request approval",
+          "order": 1,
+          "lanes": [
+            { "id": "requester", "name": "Requester" },
+            { "id": "approver", "name": "Approver" }
+          ],
+          "nodes": [
+            { "id": "start", "type": "initial", "label": "", "laneId": "requester", "rank": 0 },
+            { "id": "prepare", "type": "activity", "label": "Prepare request", "laneId": "requester", "rank": 1 },
+            { "id": "check", "type": "activity", "label": "Is the request acceptable?", "laneId": "approver", "rank": 2 },
+            { "id": "decision", "type": "decision", "label": "", "laneId": "approver", "rank": 3 },
+            { "id": "approve", "type": "activity", "label": "Approve request", "laneId": "approver", "rank": 4, "offsetX": -90 },
+            { "id": "reject", "type": "activity", "label": "Reject request", "laneId": "approver", "rank": 4, "offsetX": 90 },
+            { "id": "merge", "type": "merge", "label": "", "laneId": "approver", "rank": 5 },
+            { "id": "end", "type": "final", "label": "", "laneId": "approver", "rank": 6 }
+          ],
+          "edges": [
+            { "id": "e01", "source": "start", "target": "prepare", "sourceAnchor": "bottom", "targetAnchor": "top" },
+            { "id": "e02", "source": "prepare", "target": "check", "sourceAnchor": "bottom", "targetAnchor": "top" },
+            { "id": "e03", "source": "check", "target": "decision", "sourceAnchor": "bottom", "targetAnchor": "top" },
+            { "id": "e04", "source": "decision", "target": "approve", "sourceAnchor": "left", "targetAnchor": "top", "guardLabel": "Yes" },
+            { "id": "e05", "source": "decision", "target": "reject", "sourceAnchor": "right", "targetAnchor": "top", "guardLabel": "No" },
+            { "id": "e06", "source": "approve", "target": "merge", "sourceAnchor": "bottom", "targetAnchor": "left" },
+            { "id": "e07", "source": "reject", "target": "merge", "sourceAnchor": "bottom", "targetAnchor": "right" },
+            { "id": "e08", "source": "merge", "target": "end", "sourceAnchor": "bottom", "targetAnchor": "top" }
+          ]
+        }
+      ]
+    }
+  ]
+}

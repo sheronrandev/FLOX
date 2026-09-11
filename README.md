@@ -82,6 +82,7 @@ Requirements:
 
 - Node.js 20.19 or newer, or Node.js 22.12+
 - npm
+- Python 3.10+ only when using the FLOX JSON Generator skill
 - Docker only for container deployment or the Docker acceptance gate
 
 ```bash
@@ -94,6 +95,31 @@ npm run dev
 
 Open `http://localhost:4173`. Vite proxies `/api` to the optional Node.js API
 on port 4174. The current browser-local project flow does not require the API.
+
+### Generate diagram batches with Codex
+
+The repository includes the **[FLOX JSON Generator skill](skills/flox-json-generator/SKILL.md)**
+for turning structured process sources into importable FLOX v4 diagram batches.
+It supports CSV, TSV, JSON, text, Markdown, and—with `openpyxl` installed—XLSX
+and XLSM source inspection. The skill also provides structural, academic, and
+routing validation against the active FLOX codebase.
+
+Install it in Codex by copying `skills/flox-json-generator` into your local
+skills directory, then invoke it as `$flox-json-generator`. The supplied batch
+specification template and validation tools can also be used directly:
+
+```bash
+python skills/flox-json-generator/scripts/build_flox_batch.py \
+  --spec skills/flox-json-generator/assets/batch-spec.template.json \
+  --output tmp/flox-example
+
+python skills/flox-json-generator/scripts/validate_flox_batch.py \
+  tmp/flox-example \
+  --spec skills/flox-json-generator/assets/batch-spec.template.json
+```
+
+Generated batches are working artifacts and should not be committed unless
+they are intentional project examples or fixtures.
 
 ## Development workflow
 
