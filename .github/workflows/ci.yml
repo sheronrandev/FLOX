@@ -25,6 +25,11 @@ jobs:
             package-lock.json
             web/package-lock.json
 
+      - name: Set up Python for the FLOX generator
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Install root dependencies
         run: npm ci
 
@@ -33,3 +38,15 @@ jobs:
 
       - name: Verify types, tests, and production build
         run: npm run verify
+
+      - name: Verify the FLOX JSON generator
+        run: |
+          python skills/flox-json-generator/scripts/build_flox_batch.py \
+            --spec skills/flox-json-generator/assets/batch-spec.template.json \
+            --output "$RUNNER_TEMP/flox-skill-smoke"
+          python skills/flox-json-generator/scripts/validate_flox_batch.py \
+            "$RUNNER_TEMP/flox-skill-smoke" \
+            --spec skills/flox-json-generator/assets/batch-spec.template.json
+          node skills/flox-json-generator/scripts/validate_with_flox.mjs \
+            "$RUNNER_TEMP/flox-skill-smoke" \
+            "$GITHUB_WORKSPACE"

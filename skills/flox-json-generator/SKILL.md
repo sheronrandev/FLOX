@@ -67,10 +67,10 @@ Run the portable structural and route validator on every file:
 python scripts/validate_flox_batch.py <output-folder> --spec <batch-spec.json>
 ```
 
-When the FLOX repository is available, also run the native validator with its bundled `vite-node`:
+When the FLOX repository is available, also run the native validator through its bundled Vite runtime:
 
 ```powershell
-& "<flox-root>\web\node_modules\.bin\vite-node.cmd" -r "<flox-root>" -c "<flox-root>\web\vite.config.ts" "<skill-dir>\scripts\validate_with_flox.ts" "<output-folder>" "<flox-root>"
+node "<skill-dir>\scripts\validate_with_flox.mjs" "<output-folder>" "<flox-root>"
 ```
 
 Native validation must use the current FLOX importer, built-in findings, node dimensions, and automatic router. Fix every node collision, flow overlap, and flow intersection; do not downgrade or bypass these checks.
